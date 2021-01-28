@@ -207,6 +207,7 @@ def simple_image_process():
     print(one_hot.shape)
     nonzero_g = np.matmul(g, one_hot)
     print(nonzero_g.shape)
+    print("testing")
 
     #nonzero_g = [elem in nonzero_g if elem != 0]
     #print("Blue", nonzero_g.T)
