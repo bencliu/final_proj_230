@@ -14,15 +14,12 @@ import numpy as np
 import os
 import json
 import requests
-import math
-import rasterio
-import matplotlib.pyplot as plt
 from requests.auth import HTTPBasicAuth
 from collections import Counter
-import tensorflow as tf
+from retrying import retry
 
 #Define global variables
-PLANET_API_KEY = os.getenv('PL_API_KEY')
+PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
 
 #Print python dictionary data in readable way
 def p(message="", data=None):
@@ -143,8 +140,8 @@ Helper function: Search Image
 - Integrates combined filter from define_filer() helper function
 - Sends and receives search request result 
 """
-
-def search_image():
+def search_image(api_key):
+    print("Key", api_key)
     item_type = "PSScene4Band"
     combined_filter = define_filters()
 
@@ -156,7 +153,7 @@ def search_image():
 
     #Post req to quicksearch: Returns ID's of Items as one field
     search_result = requests.post('https://api.planet.com/data/v1/quick-search',
-        auth=HTTPBasicAuth(PLANET_API_KEY, ''),
+        auth=HTTPBasicAuth(api_key, ''),
         json=search_request)
 
     return search_result
@@ -189,19 +186,21 @@ def get_item_asset(id, item_type):
 Helper function: Extract asset from search result post request
 - Accesses image IDs and sends get request to return image metadata
 """
-def extract_assets():
+def extract_assets(api_key):
+    print("Running extract_assets")
     item_type = "PSScene4Band"
-    imageQ = search_image()
+    imageQ = search_image(api_key)
 
     #Extract image IDs
     image_ids = [feature['id'] for feature in imageQ.json()['features']]
     print("Number of Images:", len(image_ids))
 
+
     #Loop through images, process, and download TODO
     dateList = []
     locationList = []
     strips = []
-    for index in range(10):
+    for index in range(15):
         assetResult, itemResult = get_item_asset(image_ids[index], item_type)
         date = itemResult.json()["properties"]["acquired"]
         x_orig = itemResult.json()["properties"]["origin_x"]
@@ -221,75 +220,27 @@ def extract_assets():
 
 
 """
-Helper function:
-- Activate asset
-- Download asset as image file
+Helper function: Load JSON objects into file for later use
+- Used for image and assets pre-activation 
 """
-def act_download_asset(assetResult):
-    #Activate asset for download
+def write_to_json(data, outfile):
+    with open(outfile, 'w') as outfile:
+        json.dump(data, outfile)
 
-    # Parse out useful links
-    links = assetResult.json()[u"analytic"]["_links"]
-    self_link = links["_self"]
-    activation_link = links["activate"]
-
-    # Request activation of the 'analytic' asset:
-    activate_result = \
-        requests.get(
-            activation_link,
-            auth=HTTPBasicAuth(PLANET_API_KEY, '')
-        )
-
-
-    # Wait until activation complete, then print download link
-    while True:
-        activation_status_result = \
-            requests.get(
-                self_link,
-                auth=HTTPBasicAuth(PLANET_API_KEY, '')
-            )
-        if activation_status_result.json()["status"] == 'active':
-            download_link = activation_status_result.json()["location"]
-            print("Download Link of image:", download_link)
-            break
-
-    ##TODO: Learn how to download image to folder automatically via link
-
-#Image processing of image into np arrays
-def simple_image_process(path):
-    #Obtain image
-    sat_data = rasterio.open(path)
-
-    #Image dimensions
-    width = sat_data.bounds.right - sat_data.bounds.left
-    height = sat_data.bounds.top - sat_data.bounds.bottom
-
-    # Upper left pixel
-    row_min = 0
-    col_min = 0
-
-    # Lower right pixel.  Rows and columns are zero indexing.
-    row_max = sat_data.height - 1
-    col_max = sat_data.width - 1
-
-    # Conversion to numpy arrays
-    b, g, r, n = sat_data.read()
-    return b, g, r, n
-
-#Construct tensors
-def construct_tensors(b, g, r, n):
-    bt = tf.convert_to_tensor(b)
-    gt = tf.convert_to_tensor(g)
-    rt = tf.convert_to_tensor(r)
-    nt = tf.convert_to_tensor(n)
-    t1 = tf.stack([bt, gt, rt, nt])
-    print(t1.shape)
+"""
+Helper function: Load JSON objects into file for later use
+- Read JSON objects to load
+"""
+def read_json(infile):
+    with open(infile) as json_file:
+        data = json.load(json_file)
+        return data
 
 if __name__ == "__main__":
     #b, g, r, n = simple_image_process("../ArchiveData/planet_sample1.tif")
     #construct_tensors(b, g, r, n)
-    PLANET_API_KEY = os.getenv('PL_API_KEY')
-    extract_assets()
+    #PLANET_API_KEY = os.getenv('PL_API_KEY')
+    extract_assets(PLANET_API_KEY)
 
 
 
