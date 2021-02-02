@@ -79,7 +79,7 @@ def act_download_asset(assetResult):
         if activation_status_result.json()["status"] == 'active':
             download_link = activation_status_result.json()["location"]
             print("Downloading file")
-            download_file(down_link)
+            download_file(download_link)
             break
 
     ##TODO: Learn how to download image to folder automatically via link

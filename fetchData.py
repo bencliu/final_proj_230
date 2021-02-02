@@ -15,7 +15,9 @@ import os
 import json
 import requests
 from requests.auth import HTTPBasicAuth
-from collections import Counter
+from collections import Counter, OrderedDict
+import dateutil.parser
+import datetime
 from retrying import retry
 
 #Define global variables
@@ -24,55 +26,6 @@ PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
 #Print python dictionary data in readable way
 def p(message="", data=None):
     print(message, json.dumps(data, indent=2))
-
-"""
-JSON Request Test Function
-- Send get request to URL and print status
-- Note: GET Req requires not data passed as param; POST Req generally carries client data (i.e. URL)
-"""
-def basic_req(apiKey):
-    URL = "https://api.planet.com/data/v1"
-    session = requests.Session() #Start session
-    session.auth = (apiKey, "") #Authenticate
-    res = session.get(URL) #Make GET request
-    print(res.status_code)
-    print("Body", res.json())
-
-"""
-Create Basic Search Filters:
-- Stand-alone test function to look at STATs endpoint
-- Returns "bucket" container holding images for each time period; count refers to number of images
-- "Item" is a scene captured by a satellite: Props date acquired, geometry; "item-type" reps spacecraft captured
-- "Asset" property derives from item source data
-"""
-def basic_search(apiKey):
-    #Set up stats URL
-    URL = "https://api.planet.com/data/v1"
-    stats_url = "{}/stats".format(URL)
-
-    #Filters: 1) Type filter prop; 2) Config; 3) Field name: Field on which to filter
-    #Sensors and satellite to include in results
-    item_types = ["PSScene3Band", "REOrthoTile"]
-
-    #Filter for dates
-    date_filter = {
-        "type": "DateRangeFilter",
-        "field_name": "acquired", #Field to filter on: Date in which image taken
-        "config": {
-            "gte": "2020-01-01T00:00:00.000Z",  # "gte" -> Greater than or equal to
-        }
-    }
-
-    #Create and send request
-    request = {
-        "item_types" : item_types,
-        "interval": "month",
-        "filter": date_filter
-    }
-    session = requests.Session()  # Start session
-    session.auth = (apiKey, "")  # Authenticate
-    res = session.post(stats_url, json=request)
-    p(res.json())
 
 """
 Helper function: Define GeoJSON filter for image search
@@ -185,6 +138,10 @@ def get_item_asset(id, item_type):
 """
 Helper function: Extract asset from search result post request
 - Accesses image IDs and sends get request to return image metadata
+- Note: itemResult contains metadata about image; assetResult contains actual image for activation
+
+@Param: API Key
+@Return: Dictionary mapping datetime objects to tuple (itemResult, assetResult)
 """
 def extract_assets(api_key):
     print("Running extract_assets")
@@ -196,30 +153,102 @@ def extract_assets(api_key):
     print("Number of Images:", len(image_ids))
 
 
-    #Loop through images, process, and download TODO
+    #Loop through images and gather relevant activation and metadata
     dateList = []
-    locationList = []
     strips = []
-    for index in range(15):
+    asset_item_dictionary = {}
+    for index in range(len(image_ids)):
         assetResult, itemResult = get_item_asset(image_ids[index], item_type)
         date = itemResult.json()["properties"]["acquired"]
-        x_orig = itemResult.json()["properties"]["origin_x"]
-        y_orig = itemResult.json()["properties"]["origin_y"]
         strip = itemResult.json()["properties"]["strip_id"]
-        p("Date", date)  # Print date in which scene was acquired
-        p("X", x_orig)  # Print origin_x
-        p("Y", y_orig)  # Print origin_y
+        dateTimeObj = dateutil.parser.isoparse(date)
+        asset_item_dictionary[dateTimeObj] = (assetResult, itemResult)
         dateList.append(date)
         strips.append(strip)
-        locationList.append((x_orig, y_orig))
 
-    print("Datelist", dateList)
-    print("LocList", locationList)
-    stripDup = [k for k,v in Counter(strips).items() if v>1]
-    print("StripDup", stripDup)
-
+    stripDup = [k for k,v in Counter(strips).items() if v>1] #Detect strip duplicates
+    return asset_item_dictionary #Vector of items and corresponding assets
 
 """
+Helper function: Separate time series vectors
+@Param: Dictionary of datetimeObjects : (assetResult, itemResult) tuples
+@Return: Dictionary: [Time: Vector of (assetResult, itemResult) tuples]
+
+-Sort time objects 
+-Loop through and separate by changing dates
+"""
+def split_into_time_series(assets_items):
+    #Sort dictionary
+    print("STARTING Split Times")
+    sorted_time_dict = OrderedDict(sorted(assets_items.items()))
+    timeSliceDict = OrderedDict()
+
+    #Loop through and separate time slices (Based on day in this implementation)
+    for key, val in sorted_time_dict.items():
+        timeSliceIdentifier = datetime.datetime(key.year, key.month, key.day) #Separation by day as time slice
+        if timeSliceIdentifier not in timeSliceDict:
+            timeSliceDict[timeSliceIdentifier] = []
+        timeSliceDict[timeSliceIdentifier].append(val)
+
+    print("FINISHING Split Time Series")
+    return timeSliceDict
+
+"""
+Helper function: Restructures data by collective landscape strips
+@Param: Takes in Dictionary of datetimeObjects: (assetResult, itemResult) vector
+@Return: Dictionary of dateTimeObjects: [Dictionary of stripIDs: (assetResult, itemResult) vector]
+"""
+def split_by_strip(timeSliceDict):
+    split_time_dict = OrderedDict()
+
+    #Loop through each time split
+    for time_split, tupleVec in timeSliceDict.items():
+        strip_dictionary = separate_by_strips(tupleVec) #Construct Dictionary
+        split_time_dict[time_split] = strip_dictionary #Update new dict
+
+    return split_time_dict
+
+"""
+Helper function: Separates vector of asset, item tuples into dictionary of splits
+@Param: item_asset_vector (Grouped by time slice)
+@Return: Dictionary mapping stripIDs to item_asset_vector
+"""
+def separate_by_strips(item_asset_vec):
+    strip_dict = {}
+
+    #Loop through pairs
+    for item_asset_pair in item_asset_vec:
+        stripid = item_asset_pair[1].json()["properties"]["strip_id"]
+        if stripid not in strip_dict: #Create new vector if new id
+            strip_dict[stripid] = []
+        strip_dict[stripid].append(item_asset_pair) #Add pair to vector corresponding to id
+    return OrderedDict(sorted(strip_dict.items()))
+
+"""
+Test Function: Tests that timesplit/splitID separation is working
+@Param: split_time_dict: Dictionary of time_splits : [Dictionary of stripIDs : asset_item_vec]
+@Return: True/False depending on test success
+"""
+def test_time_split(split_time_dict):
+    print("Starting test function")
+    #Look at each asset_item pair and see if the date and stripID matches with categorization
+    for time_split, strip_dict in split_time_dict.items():
+        for strip_id, asset_item_vector in strip_dict.items():
+            for asset_item in asset_item_vector:
+                item = asset_item[1]
+                
+                #Date parsing 
+                itemDate = item.json()["properties"]["acquired"]
+                itemDate = dateutil.parser.isoparse(itemDate)
+                itemDateTime = datetime.datetime(itemDate.year, itemDate.month, itemDate.day)
+                
+                rightTime = itemDateTime == time_split #Check time split matches
+                rightStrip = (strip_id == item.json()["properties"]["strip_id"]) #Check stripid matches
+                if not rightTime or not rightStrip:
+                    return False 
+    return True
+
+""""
 Helper function: Load JSON objects into file for later use
 - Used for image and assets pre-activation 
 """
@@ -234,40 +263,18 @@ Helper function: Load JSON objects into file for later use
 def read_json(infile):
     with open(infile) as json_file:
         data = json.load(json_file)
-        return data
+        return date
 
 if __name__ == "__main__":
     #b, g, r, n = simple_image_process("../ArchiveData/planet_sample1.tif")
     #construct_tensors(b, g, r, n)
     #PLANET_API_KEY = os.getenv('PL_API_KEY')
-    extract_assets(PLANET_API_KEY)
+    item_asset_dict = extract_assets(PLANET_API_KEY)
+    timeSliceDict = split_into_time_series(item_asset_dict)
+    finalStruct = split_by_strip(timeSliceDict)
+    print(test_time_split(finalStruct))
 
 
 
 
-
-
-
-"""
-[
-                    -88.36441040039062,
-                    41.71418635520256
-                ],
-                [
-                    -88.25746536254883,
-                    41.71418635520256
-                ],
-                [
-                    -88.25746536254883,
-                    41.770927598483546
-                ],
-                [
-                    -88.36441040039062,
-                    41.770927598483546
-                ],
-                [
-                    -88.36441040039062,
-                    41.71418635520256
-                ]
-"""
 
