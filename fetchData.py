@@ -19,6 +19,8 @@ from collections import Counter, OrderedDict
 import dateutil.parser
 import datetime
 from retrying import retry
+from planet import api
+from typing import Any, Dict, Tuple, List, Callable
 
 #Define global variables
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
@@ -43,6 +45,18 @@ def define_geometry():
                 [-121.59290313720705, 37.93444993515032]
             ]
         ]
+    }
+    return geojson_geometry
+
+"""
+Helper function: Define GeoJSON filter for image search based on county polygon
+@Param: County FIP code, County Polygons generated nested list
+@Returns: geometry filter for county
+"""
+def define_county_geometry(FIP_code: int, county_polygons: Dict[int, List[List[float]]]):
+    geojson_geometry = {
+        "type": "Polygon",
+        "coordinates": county_polygons[FIP_code]
     }
     return geojson_geometry
 
@@ -263,7 +277,7 @@ Helper function: Load JSON objects into file for later use
 def read_json(infile):
     with open(infile) as json_file:
         data = json.load(json_file)
-        return date
+        return data
 
 if __name__ == "__main__":
     #b, g, r, n = simple_image_process("../ArchiveData/planet_sample1.tif")
