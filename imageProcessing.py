@@ -47,7 +47,18 @@ def simple_image_process(path):
 
     # Conversion to numpy arrays
     b, g, r, n = sat_data.read()
-    return b, g, r, n
+    return np.array([b, g, r, n])
+
+"""
+Function: Merge Strip Vectors (After cloud processing)
+@param: NP array of b, g, r, n (num_strips, 4, W, H) (4D)
+@return: Merged [b, g, r, n] NP Array embedding for strip of timestep t (4, W, H) (3D)
+"""
+def merge_strip_vector(strip_vector):
+    length = strip_vector.shape[0]
+    merged = np.sum(strip_vector, axis=0) #Collapse axis 0
+    return (merged / length) #Average merged arrays
+
 
 """
 Function: Constructing Tensors:

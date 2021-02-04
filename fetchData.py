@@ -54,9 +54,10 @@ Helper function: Define GeoJSON filter for image search based on county polygon
 @Returns: geometry filter for county
 """
 def define_county_geometry(FIP_code: int, county_polygons: Dict[int, List[List[float]]]):
+    coordinates = [county_polygons[FIP_code]] #Added extra brackets to fit filter format
     geojson_geometry = {
         "type": "Polygon",
-        "coordinates": county_polygons[FIP_code]
+        "coordinates": coordinates
     }
     return geojson_geometry
 

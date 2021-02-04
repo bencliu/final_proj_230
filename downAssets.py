@@ -15,6 +15,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from multiprocessing.dummy import Pool as ThreadPool
 from retrying import retry
+from datetime import datetime
 from collections import Counter
 
 # Import functions
@@ -29,9 +30,11 @@ session.auth = (PLANET_API_KEY, "")
 
 """
 Helper test function:
-- Extract one single image
+- Extract one or more images
+@Param: API Key and # Images to Extract
+@Return: Vector of assetResults corresponding to images
 """
-def extract_single_image(api_key):
+def extract_images(api_key, num_images):
     print("Running extract_assets")
     item_type = "PSScene4Band"
     imageQ = search_image(api_key)
@@ -40,8 +43,11 @@ def extract_single_image(api_key):
     image_ids = [feature['id'] for feature in imageQ.json()['features']]
     print("Number of Images:", len(image_ids))
 
-    assetResult, itemResult = get_item_asset(image_ids[0], item_type)
-    return assetResult
+    assetVector = []
+    for index in range(num_images):
+        assetResult, itemResult = get_item_asset(image_ids[index], item_type)
+        assetVector.append(assetResult)
+    return assetVector
 
 """
 Helper function:
@@ -52,6 +58,7 @@ Helper function:
         wait_exponential_max=10000)
 def act_download_asset(assetResult):
     #Activate asset for download
+    print("Start activating and downloading asset")
 
     # Parse out useful links
     links = assetResult.json()[u"analytic"]["_links"]
@@ -67,6 +74,7 @@ def act_download_asset(assetResult):
 
     #Trigger retry
     if activate_result.status_code == 429:
+        print("Exception reached")
         raise Exception("rate limit error")
 
     # Wait until activation complete, then print download link
@@ -78,41 +86,73 @@ def act_download_asset(assetResult):
             )
         if activation_status_result.json()["status"] == 'active':
             download_link = activation_status_result.json()["location"]
-            print("Downloading file")
             download_file(download_link)
             break
 
     ##TODO: Learn how to download image to folder automatically via link
 
 # Parellize activation requests
-def parallelize():
+def parallelize(asset_vector):
     #Instantiate thread pool object
     parallelism = 5
     thread_pool = ThreadPool(parallelism)
-    asset_json_path = 'json_store/assets.txt'
-
-    with open(asset_json_path) as file:
-        assetResults = file.read().splitlines()[:4] #First 10 asset items for now
 
     #Activate thread pool
-    thread_pool.map(act_download_asset, assetResults)
+    thread_pool.map(act_download_asset, asset_vector)
 
 # Helper: Automatically download file given link
 def download_file(link="", path="./images"):
-    timestr = time.strftime("%Y%m%d-%H%M%S")
+    print("DOWNLOADING FILE")
+    timestr = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] #Note change this to a unique identifier
     timepath = os.path.join(path, timestr)
     urllib.request.urlretrieve(link, timepath)
+    print("FINISHED DOWNLOADING FILE")
 
-# Verifies that downloading image pipeline is working properly [Single image]
-def download_image_test():
-    result = extract_single_image(PLANET_API_KEY)
-    print("Finished extracting assets")
-    link = act_download_asset(result)
-    print("Downloading File")
-    download_file(link)
-    print("Finished downloading")
+
+
+
+
 
 if __name__ == "__main__":
     print("starting")
-    download_image_test()
+    thread_download_test()
 
+
+
+
+"""
+Test Function Queue:
+- Note these functions are obselete
+- The results of these functions have already been integrated into helper functions
+"""
+
+# Verifies that downloading image pipeline is working properly [Single image]
+def download_image_test():
+    result = extract_images(PLANET_API_KEY, 1)[0] #Single image vector
+    print("Finished extracting assets")
+    link = act_download_asset(result)
+
+# Verifies parallelizing requests, threadpool is working properly
+def thread_download_test():
+    assetResultsVector = extract_images(PLANET_API_KEY, 8)
+    print("Finished obtaining asset_results")
+    parallelize(assetResultsVector)
+
+
+"""
+Thread Pool Experiments:
+- Tester function for parallelizing
+- Tester print function
+- Tester integration function
+"""
+
+def test_parallel():
+    parallelism = 5
+    nums_vec = [1, 2, 3]
+    thread_pool = ThreadPool(parallelism)
+
+    # Activate thread pool
+    thread_pool.map(thread_print, nums_vec)
+
+def thread_print(num):
+    print(num)

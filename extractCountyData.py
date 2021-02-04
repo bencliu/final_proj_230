@@ -77,10 +77,10 @@ def read_county_truth(filename: str):
 if __name__ == "__main__":
     
     # Extract county polygons from GeoJSON
-    county_polygons = read_county_GeoJSON("Illinois_counties.geojson")
+    county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
 
     # Extract county truth yields from csv
-    county_truth_yields = read_county_truth("Illinois_Truth_Data.csv")
+    county_truth_yields = read_county_truth("json_store/Illinois_Truth_Data.csv")
 
 
 
