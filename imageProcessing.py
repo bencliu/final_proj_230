@@ -64,15 +64,42 @@ def merge_strip_vector(strip_vector):
 Function: Constructing Tensors:
 @param: b, g, r, n np feeder arrays
 @return: 3D tensor with human-engineered features
-Engineered features: TODO 
 """
 def construct_tensors(b, g, r, n):
-    bt = tf.convert_to_tensor(b)
-    gt = tf.convert_to_tensor(g)
-    rt = tf.convert_to_tensor(r)
-    nt = tf.convert_to_tensor(n)
-    t1 = tf.stack([bt, gt, rt, nt])
+    b_t = tf.convert_to_tensor(b)
+    g_t = tf.convert_to_tensor(g)
+    r_t = tf.convert_to_tensor(r)
+    n_t = tf.convert_to_tensor(n)
+    ndvi = calculate_NDVI(n_t, r_t)
+    evi = calculate_EVI(b_t, r_t, n_t)
+    msavi = calculate_MSAVI(r_t, n_t)
+    t1 = tf.stack([b_t, g_t, r_t, n_t, ndvi, evi, msavi])
     print(t1.shape)
+
+
+"""
+Function: Calculate NDVI (Normalized Difference Vegetation Index)
+@params: tensors for n and r, assuming shape of (m,1)
+@return: NDVI as tensor with shape (m,1)
+"""
+def calculate_NDVI(n, r):
+    return (n-r)/(n+r)
+
+"""
+Function: Calculate EVI (Enhanced Vegetation Index)
+@params: tensors for b, n and r, assuming shape of (m,1)
+@return: NDVI as tensor with shape (m,1)
+"""
+def calculate_EVI(b, r, n):
+    return 2.5*((n-r)/(n+6*r-7.5*b+1))
+
+"""
+Function: Calculate MSAVI (Modified Soil Adjusted Vegetation Index)
+@params: tensors for n and r, assuming shape of (m,1)
+@return: NDVI as tensor with shape (m,1)
+"""
+def calculate_MSAVI(r, n):
+    return (2*n+1-((2*n+1)^2-8*(n-r))^0.5)/2
 
 if __name__ == "__main__":
     print("Starting...")
