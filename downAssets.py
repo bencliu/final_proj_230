@@ -19,7 +19,7 @@ from datetime import datetime
 from collections import Counter
 
 # Import functions
-from fetchData import search_image, get_item_asset
+from fetchData import search_image, get_item_asset, define_filters
 
 # Global Var
 PLANET_API_KEY = "b99bfe8b97d54205bccad513987bbc02"
@@ -34,10 +34,10 @@ Helper test function:
 @Param: API Key and # Images to Extract
 @Return: Vector of assetResults corresponding to images
 """
-def extract_images(api_key, num_images):
+def extract_images(api_key, num_images, combined_filter):
     print("Running extract_assets")
     item_type = "PSScene4Band"
-    imageQ = search_image(api_key)
+    imageQ = search_image(api_key, combined_filter)
 
     #Extract image IDs
     image_ids = [feature['id'] for feature in imageQ.json()['features']]
@@ -89,8 +89,8 @@ def act_download_asset(assetResult):
             download_file(download_link)
             break
 
-    ##TODO: Learn how to download image to folder automatically via link
 
+# TODO: Edit function to receive more params and pass down to download_file_nested
 # Parellize activation requests
 def parallelize(asset_vector):
     #Instantiate thread pool object
@@ -100,8 +100,9 @@ def parallelize(asset_vector):
     #Activate thread pool
     thread_pool.map(act_download_asset, asset_vector)
 
+# TODO: Edit function to incorporate nested folder function
 # Helper: Automatically download file given link
-def download_file(link="", path="./images"):
+def download_file_nested(link="", path="./images"):
     print("DOWNLOADING FILE")
     timestr = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] #Note change this to a unique identifier
     timepath = os.path.join(path, timestr)
@@ -109,13 +110,9 @@ def download_file(link="", path="./images"):
     print("FINISHED DOWNLOADING FILE")
 
 
-
-
-
-
 if __name__ == "__main__":
     print("starting")
-    thread_download_test()
+
 
 
 
@@ -126,15 +123,25 @@ Test Function Queue:
 - The results of these functions have already been integrated into helper functions
 """
 
+# Helper: Automatically download file given link
+def download_file(link="", path="./images"):
+    print("DOWNLOADING FILE")
+    timestr = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] #Note change this to a unique identifier
+    timepath = os.path.join(path, timestr)
+    urllib.request.urlretrieve(link, timepath)
+    print("FINISHED DOWNLOADING FILE")
+
 # Verifies that downloading image pipeline is working properly [Single image]
 def download_image_test():
-    result = extract_images(PLANET_API_KEY, 1)[0] #Single image vector
+    combined_filter = define_filters()
+    result = extract_images(PLANET_API_KEY, 1, combined_filter)[0] #Single image vector
     print("Finished extracting assets")
     link = act_download_asset(result)
 
 # Verifies parallelizing requests, threadpool is working properly
 def thread_download_test():
-    assetResultsVector = extract_images(PLANET_API_KEY, 8)
+    combined_filter = define_filters()
+    assetResultsVector = extract_images(PLANET_API_KEY, 8, combined_filter)
     print("Finished obtaining asset_results")
     parallelize(assetResultsVector)
 

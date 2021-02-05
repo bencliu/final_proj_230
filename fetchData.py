@@ -52,12 +52,13 @@ def define_geometry():
 Helper function: Define GeoJSON filter for image search based on county polygon
 @Param: County FIP code, County Polygons generated nested list
 @Returns: geometry filter for county
+Note: This was changed due to the code design of the integrated data pipeline; It's inefficient to
+      pass in a dictionary at every call to this function 
 """
-def define_county_geometry(FIP_code: int, county_polygons: Dict[int, List[List[float]]]):
-    coordinates = [county_polygons[FIP_code]] #Added extra brackets to fit filter format
+def define_county_geometry(coordinates: List[List[float]]):
     geojson_geometry = {
         "type": "Polygon",
-        "coordinates": coordinates
+        "coordinates": [coordinates]
     }
     return geojson_geometry
 
@@ -108,10 +109,9 @@ Helper function: Search Image
 - Integrates combined filter from define_filer() helper function
 - Sends and receives search request result 
 """
-def search_image(api_key):
+def search_image(api_key, combined_filter):
     print("Key", api_key)
     item_type = "PSScene4Band"
-    combined_filter = define_filters()
 
     #API Req Object
     search_request = {
@@ -158,10 +158,10 @@ Helper function: Extract asset from search result post request
 @Param: API Key
 @Return: Dictionary mapping datetime objects to tuple (itemResult, assetResult)
 """
-def extract_assets(api_key):
+def extract_assets(api_key, combined_filter):
     print("Running extract_assets")
     item_type = "PSScene4Band"
-    imageQ = search_image(api_key)
+    imageQ = search_image(api_key, combined_filter)
 
     #Extract image IDs
     image_ids = [feature['id'] for feature in imageQ.json()['features']]
@@ -284,7 +284,8 @@ if __name__ == "__main__":
     #b, g, r, n = simple_image_process("../ArchiveData/planet_sample1.tif")
     #construct_tensors(b, g, r, n)
     #PLANET_API_KEY = os.getenv('PL_API_KEY')
-    item_asset_dict = extract_assets(PLANET_API_KEY)
+    combined_filter = define_filters()
+    item_asset_dict = extract_assets(PLANET_API_KEY, combined_filter)
     timeSliceDict = split_into_time_series(item_asset_dict)
     finalStruct = split_by_strip(timeSliceDict)
     print(test_time_split(finalStruct))
