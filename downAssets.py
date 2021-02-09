@@ -15,10 +15,14 @@ from requests.auth import HTTPBasicAuth
 from multiprocessing.dummy import Pool as ThreadPool
 from retrying import retry
 from datetime import datetime
+import rasterio
+import tensorflow as tf
+import numpy as np
 from collections import Counter
 
 # Import functions
 from fetchData import search_image, get_item_asset, define_filters
+from imageProcessing import construct_tensors
 
 # Global Var
 PLANET_API_KEY = "b99bfe8b97d54205bccad513987bbc02"
@@ -85,32 +89,55 @@ def act_download_asset(assetResult):
             )
         if activation_status_result.json()["status"] == 'active':
             download_link = activation_status_result.json()["location"]
-            download_file(download_link)
+            return download_link
             break
+"""
+Wrapper function for parallelization:
+@Param: Download_link for image
+@Return: Image tensor
+"""
+def download_process_wrapper(asset):
+    link = act_download_asset(asset)
+    image_tensor = download_process_image(link)
+    return image_tensor
 
-
-# TODO: Edit function to receive more params and pass down to download_file_nested
 # Parellize activation requests
 def parallelize(asset_vector):
+    print("START PARALLELIZING")
     #Instantiate thread pool object
     parallelism = 5
     thread_pool = ThreadPool(parallelism)
 
     #Activate thread pool
-    thread_pool.map(act_download_asset, asset_vector)
+    imageTensorArray = thread_pool.map(download_process_wrapper, asset_vector)
+    print("COMPLETE PARALLELIZING")
+    print(imageTensorArray)
+    return imageTensorArray
 
-# TODO: Edit function to incorporate nested folder function
 # Helper: Automatically download file given link
-def download_file_nested(link="", path="./images"):
+def download_process_image(link="", path="./images"):
+    #Download File
     print("DOWNLOADING FILE")
     timestr = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] #Note change this to a unique identifier
     timepath = os.path.join(path, timestr)
     urllib.request.urlretrieve(link, timepath)
     print("FINISHED DOWNLOADING FILE")
 
+    #Create image tensor
+    print("START PROCESSING IMAGE")
+    sat_data = rasterio.open(timepath)
+    b, g, r, n = sat_data.read()
+    imageTensor = construct_tensors(b, g, r, n) #TODO, standardize images here [Function is wrong]
+    print("COMPLETE IMAGE PROCESSING")
 
-if __name__ == "__main__":
-    print("starting")
+
+    #Delete file
+    print("DELETING FILE, FINISHED PROCESSING")
+    os.remove(timepath)
+    return imageTensor
+
+
+
 
 
 
@@ -145,6 +172,27 @@ def thread_download_test():
     parallelize(assetResultsVector)
 
 
+# Tests outputted numpy array image conversion shapes
+def test_image_dimensions():
+    #thread_download_test()
+    directory = "images"
+    print("Starting to convert images to numpy arrays")
+    for file in os.listdir(directory):  # Loops through images
+        filename = os.fsdecode(file)
+        path = os.path.join(directory, filename)
+        sat_data = rasterio.open(path)
+        b, g, r, n = sat_data.read()
+        combined = np.array([b, g, r, n])
+        print(combined.shape)
+
+# Tests Parallel Processing: Simultaneous Image Downloading, Processing, Deletions
+def test_multithreaded_processing():
+    combined_filter = define_filters()
+    assetResultsVector = extract_images(PLANET_API_KEY, 8, combined_filter)
+    results = parallelize(assetResultsVector)
+    for tensor in results:
+        print(tensor.shape)
+
 """
 Thread Pool Experiments:
 - Tester function for parallelizing
@@ -158,7 +206,15 @@ def test_parallel():
     thread_pool = ThreadPool(parallelism)
 
     # Activate thread pool
-    thread_pool.map(thread_print, nums_vec)
+    results = thread_pool.map(thread_print, nums_vec)
+    print(results)
 
 def thread_print(num):
-    print(num)
+    return num
+
+
+
+
+if __name__ == "__main__":
+    print("Starting downAssets...")
+    test_multithreaded_processing()

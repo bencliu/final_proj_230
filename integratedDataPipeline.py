@@ -17,6 +17,7 @@ import dateutil.parser
 import datetime
 from retrying import retry
 from typing import Any, Dict, Tuple, List, Callable
+import pickle
 
 #Import county extraction functions
 from extractCountyData import read_county_GeoJSON
@@ -32,6 +33,8 @@ from fetchData import split_into_time_series, split_by_strip, separate_by_strips
 
 #Define global variables
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
+MAX_IMAGE_LENGTH = 0 #Global vars for image standardization
+MAX_IMAGE_HEIGHT = 0 #Global vars for image standardization
 
 """
 Integrated Utility Func: Filter, Search, Obtain Images
@@ -45,16 +48,27 @@ def integrated_search(combined_filter):
     return timeSplitNested
 
 """
-Integrated Utility Func: Downloading Images 
-@Param: vector of tuples (assetResult, itemResult)
-@Action: Downloads images into nested folder structure
-Note: this is a dumb function, just a symbolic representation for now 
+Integrated Utility Func: Converting nested dictionary to image arrays
+@Param: Nested dictionary of timesplit : [vector of {splitid : assetItemVec}]
+@Return: Nested county image dictionary of timesplit : [vector of {splitid : image2dArrays}] 
 """
 def integrated_download(nestedTimeSplitDict):
+    nestedCountyArrays = {}
     for timeSplit, splitDictionary in nestedTimeSplitDict.items():
         for splitid, assetItemVec in splitDictionary.items():
-            pass
-            #TODO: Pass to parallelize, download_file series for nested folder structure
+
+            #Create image vector for parallezing
+            assetVector = []
+            for assetItemPair in assetItemVec:
+                asset = assetItemPair[0]
+                assetVector.append(asset)
+
+            imageArray = parallelize(assetVector) #Will return tensor representation of images
+
+            #Nested dictionary repackaging
+            splits = {splitid: imageArray} #splitID : imageArrays
+            nestedCountyArrays[timeSplit].append(splits) #timeSplit may have multiple splits
+    return nestedCountyArrays
 
 """
 TODO: Need to define our scope of filter params
@@ -77,15 +91,20 @@ def integrated_pipeline(county_dictionary, root_path='../countyImages'):
 
         #Integrated search and download of county images
         nestedTimeSplitStruct = integrated_search(searchFilter)
-        integrated_download(nestedTimeSplitStruct)
+        countyImages = integrated_download(nestedTimeSplitStruct)
+
+        #Store county images in pre-loadable file via pickle
+        fullPath = 'images/'+fipCode+'.pickle'
+        with open(fullPath, 'wb') as handle:
+            pickle.dump(countyImages, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-
-"""
-Notes: Needed functions
-- Well defined file structures 
-- Integrated pipeline for image processing 
-"""
+#Helper to unserialize pickle data object
+def retrievePickle(path):
+    # Load data (deserialize)
+    with open(path, 'rb') as handle:
+        unserialized_data = pickle.load(handle)
+        return unserialized_data
 
 if __name__ == "__main__":
     print("Starting Integrted Data Pipeline")

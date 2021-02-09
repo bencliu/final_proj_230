@@ -80,11 +80,12 @@ def construct_tensors(b, g, r, n):
     g_t = tf.convert_to_tensor(g)
     r_t = tf.convert_to_tensor(r)
     n_t = tf.convert_to_tensor(n)
-    ndvi = calculate_NDVI(n_t, r_t)
-    evi = calculate_EVI(b_t, r_t, n_t)
-    msavi = calculate_MSAVI(r_t, n_t)
-    t1 = tf.stack([b_t, g_t, r_t, n_t, ndvi, evi, msavi])
-    print(t1.shape)
+    #ndvi = calculate_NDVI(n_t, r_t)
+    #evi = calculate_EVI(b_t, r_t, n_t)
+    #msavi = calculate_MSAVI(r_t, n_t)
+    #t1 = tf.stack([b_t, g_t, r_t, n_t, ndvi, evi, msavi])
+    t1 = tf.stack([b_t, g_t, r_t, n_t])
+    return t1
 
 
 """
@@ -292,3 +293,12 @@ if __name__ == "__main__":
     tiff_path = "../ArchiveData/planet_sample1.tiff"
     visualize_image(tiff_path)
     print(tf.version.VERSION)
+
+
+
+"""
+TODO
+1) Fix code documentation and style for vegatation calc functions (i.e. avoid hardcoded vals)
+2) Check vegetation calc functions to ensure that matrix ops work properly (should be okay)
+
+"""
