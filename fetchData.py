@@ -58,7 +58,7 @@ Note: This was changed due to the code design of the integrated data pipeline; I
 def define_county_geometry(coordinates: List[List[float]]):
     geojson_geometry = {
         "type": "Polygon",
-        "coordinates": [coordinates]
+        "coordinates": coordinates
     }
     return geojson_geometry
 
@@ -279,6 +279,8 @@ def read_json(infile):
     with open(infile) as json_file:
         data = json.load(json_file)
         return data
+
+
 
 if __name__ == "__main__":
     #b, g, r, n = simple_image_process("../ArchiveData/planet_sample1.tif")
