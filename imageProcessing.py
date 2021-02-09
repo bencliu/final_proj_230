@@ -291,3 +291,4 @@ if __name__ == "__main__":
     print("Starting...")
     tiff_path = "../ArchiveData/planet_sample1.tiff"
     visualize_image(tiff_path)
+    print(tf.version.VERSION)

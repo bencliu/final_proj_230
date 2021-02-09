@@ -7,7 +7,6 @@ File Description: Multithreaded Asset Downloads
 
 # Package imports
 import os
-import requests
 import json
 import time
 import urllib.request 

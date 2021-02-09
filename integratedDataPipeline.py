@@ -16,7 +16,6 @@ from collections import Counter, OrderedDict
 import dateutil.parser
 import datetime
 from retrying import retry
-from planet import api
 from typing import Any, Dict, Tuple, List, Callable
 
 #Import county extraction functions
