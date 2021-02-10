@@ -280,8 +280,6 @@ def read_json(infile):
         data = json.load(json_file)
         return data
 
-
-
 if __name__ == "__main__":
     #b, g, r, n = simple_image_process("../ArchiveData/planet_sample1.tif")
     #construct_tensors(b, g, r, n)

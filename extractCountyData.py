@@ -10,6 +10,9 @@ from typing import Any, Dict, Tuple, List, Callable
 from fetchData import define_county_geometry
 from collections import Sequence
 from itertools import chain, count
+import downAssets
+import fetchData
+import matplotlib.pyplot as plt
 
 """
 Function: Extracts the county FIPS code and polygon coordinates into a dictionary
@@ -153,9 +156,67 @@ def test_define_county_geometry():
                                       [ -88.9419, 41.97826 ], [ -88.94182, 41.96797 ], [ -88.94177, 41.95845 ], [ -88.94174, 41.95041 ], [ -88.94169, 41.94406 ], [ -88.94166, 41.93961 ], [ -88.94168, 41.93182 ], [ -88.94153, 41.92077 ], [ -88.94145, 41.9063 ], [ -88.94128, 41.89175 ], [ -88.94129, 41.88603 ], [ -88.94128, 41.87501 ], [ -88.9413, 41.86292 ], [ -88.94133, 41.85294 ], [ -88.94135, 41.8447 ], [ -88.94136, 41.8336 ], [ -88.94136, 41.82384 ], [ -88.94136, 41.80495 ], [ -88.94134, 41.79774 ], [ -88.94134, 41.79711 ], [ -88.94135, 41.79511 ], [ -88.94135, 41.7919 ], [ -88.94136, 41.7899 ], [ -88.94142, 41.78613 ], [ -88.9415, 41.76153 ], [ -88.94155, 41.75003 ], [ -88.94163, 41.72759 ], [ -88.94165, 41.71979 ], [ -88.94151, 41.71726 ], [ -88.94056, 41.71715 ], [ -88.94026, 41.71381 ], [ -88.93967, 41.68805 ], [ -88.93953, 41.66911 ], [ -88.93923, 41.65708 ], [ -88.93895, 41.64239 ], [ -88.93865, 41.62975 ], [ -88.93862, 41.62832 ], [ -88.93703, 41.62836 ], [ -88.89032, 41.6296 ], [ -88.87166, 41.63003 ], [ -88.85265, 41.63059 ], [ -88.82019, 41.63133 ], [ -88.81696, 41.63135 ], [ -88.79362, 41.63117 ], [ -88.77039, 41.63098 ], [ -88.75359, 41.63084 ], [ -88.73172, 41.63066 ], [ -88.71719, 41.63053 ], [ -88.70647, 41.63042 ], [ -88.70086, 41.63064 ], [ -88.69259, 41.6307 ], [ -88.68747, 41.63075 ], [ -88.68351, 41.6308 ], [ -88.67987, 41.63081 ], [ -88.6751, 41.63087 ], [ -88.6674, 41.63097 ], [ -88.66355, 41.631 ], [ -88.66109, 41.63099 ], [ -88.65419, 41.63104 ], [ -88.65071, 41.63099 ], [ -88.64097, 41.63111 ], [ -88.62291, 41.63127 ], [ -88.61185, 41.63133 ], [ -88.60224, 41.63139 ], [ -88.60241, 41.63867 ], [ -88.6024, 41.6387 ], [ -88.60236, 41.64227 ], [ -88.60231, 41.64238 ], [ -88.60231, 41.64245 ], [ -88.6023, 41.6428 ], [ -88.60231, 41.64461 ], [ -88.60232, 41.64592 ], [ -88.60234, 41.64719 ], [ -88.60234, 41.64759 ], [ -88.60236, 41.64853 ], [ -88.60243, 41.65321 ], [ -88.60246, 41.65491 ], [ -88.60252, 41.65903 ], [ -88.60253, 41.65986 ], [ -88.60259, 41.66572 ], [ -88.6026, 41.66756 ], [ -88.60277, 41.67438 ], [ -88.60285, 41.68184 ], [ -88.60286, 41.68223 ], [ -88.60293, 41.68654 ], [ -88.60293, 41.68663 ], [ -88.60296, 41.68837 ], [ -88.60313, 41.6968 ], [ -88.60327, 41.70407 ], [ -88.60362, 41.71955 ], [ -88.60193, 41.71956 ], [ -88.60195, 41.7235 ], [ -88.60199, 41.73427 ], [ -88.60214, 41.76913 ], [ -88.60227, 41.79142 ], [ -88.60227, 41.81399 ], [ -88.60213, 41.83387 ], [ -88.6019, 41.85039 ], [ -88.60183, 41.86066 ], [ -88.60162, 41.87936 ], [ -88.60143, 41.89636 ], [ -88.60139, 41.90466 ], [ -88.60134, 41.90848 ], [ -88.60135, 41.91462 ], [ -88.60139, 41.93373 ], [ -88.60141, 41.95863 ], [ -88.60153, 42.01052 ], [ -88.60175, 42.04418 ], [ -88.60196, 42.06647 ], [ -88.58837, 42.08823 ], [ -88.58834, 42.12003 ], [ -88.5884, 42.12226 ], [ -88.58842, 42.12424 ], [ -88.58835, 42.12579 ], [ -88.58836, 42.12706 ], [ -88.58843, 42.12852 ], [ -88.58866, 42.15357 ], [ -88.58866, 42.15359 ], [ -88.59284, 42.15356 ], [ -88.59328, 42.15355 ], [ -88.61198, 42.15347 ], [ -88.61203, 42.15347 ], [ -88.61218, 42.15345 ], [ -88.61766, 42.15341 ], [ -88.6177, 42.15342 ], [ -88.62225, 42.15345 ], [ -88.62399, 42.15347 ], [ -88.62515, 42.15347 ], [ -88.63051, 42.15346 ], [ -88.63112, 42.15346 ], [ -88.63356, 42.15346 ], [ -88.63518, 42.15346 ], [ -88.63641, 42.15346 ], [ -88.63792, 42.15346 ], [ -88.64233, 42.15346 ], [ -88.6464, 42.15346 ], [ -88.64647, 42.15345 ], [ -88.647, 42.15345 ], [ -88.64719, 42.15345 ], [ -88.65268, 42.15346 ], [ -88.66639, 42.15344 ], [ -88.66647, 42.15344 ], [ -88.67472, 42.15346 ], [ -88.69568, 42.15352 ], [ -88.70563, 42.15356 ], [ -88.71637, 42.15357 ], [ -88.73984, 42.15358 ], [ -88.74995, 42.15358 ], [ -88.76873, 42.15346 ], [ -88.77646, 42.15359 ], [ -88.77665, 42.15352 ], [ -88.77674, 42.15351 ], [ -88.78373, 42.15351 ], [ -88.79387, 42.15351 ], [ -88.80257, 42.15347 ], [ -88.80322, 42.15348 ], [ -88.82277, 42.15333 ], [ -88.82832, 42.15332 ], [ -88.83145, 42.15331 ], [ -88.83232, 42.15329 ], [ -88.83636, 42.15321 ], [ -88.8374, 42.15323 ], [ -88.8381, 42.15321 ], [ -88.84794, 42.1531 ], [ -88.85788, 42.15294 ], [ -88.86098, 42.15289 ], [ -88.86807, 42.15285 ], [ -88.87622, 42.15298 ], [ -88.88778, 42.15291 ], [ -88.9022, 42.15267 ], [ -88.93495, 42.15239 ], [ -88.93973, 42.15232 ], [ -88.93971, 42.14808 ], [ -88.93972, 42.1473 ], [ -88.93985, 42.14527 ], [ -88.93969, 42.14105 ], [ -88.93953, 42.12322 ], [ -88.93944, 42.11375 ], [ -88.93929, 42.09785 ], [ -88.93916, 42.08692 ], [ -88.93909, 42.07974 ], [ -88.94211, 42.06505 ], [ -88.9421, 42.05837 ], [ -88.94204, 42.04441 ], [ -88.94189, 42.02462 ], [ -88.94192, 42.0199 ], [ -88.94187, 42.01911 ] ] ]
     test_FIPS = [FIP_1, FIP_11, FIP_37]
     for FIP_coordinates in test_FIPS:
-        geofilter = define_county_geometry(FIP_coordinates)
-        assert(depth(geofilter["coordinates"]) == depth(sample_coordinate))
+        geojson = define_county_geometry(FIP_coordinates)
+        assert(depth(geojson["coordinates"]) == depth(sample_coordinate))
     print("Completed verification for define_county_geometry")
+
+"""
+Test function: test define_county_geometry picture generation
+@Params: None
+@Return: None
+"""
+def test_define_county_geometry_pic_generation():
+    PLANET_API_KEY = "b99bfe8b97d54205bccad513987bbc02"
+    combined_filter = test_filter()
+    assetResultsVector = downAssets.extract_images(PLANET_API_KEY, 2, combined_filter)
+    results = downAssets.parallelize(assetResultsVector)
+    for tensor in results:
+        plt.figure()
+        plt.imshow(tensor[0]) # Output the R-band
+        plt.show()
+    print("Completed verification for picture generation from county geometry")
+"""
+Helper Test function: define custom filter
+@Params: n/a
+@Return: filter
+"""
+def test_filter():
+    # generate county_polygons and filter
+    county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
+    geojson = define_county_geometry(county_polygons[161])
+
+    geometry_filter = {
+        "type": "GeometryFilter",
+        "field_name": "geometry",
+        "config": geojson
+    }
+
+    # Date Range
+    date_range_filter = {
+        "type": "DateRangeFilter",
+        "field_name": "acquired",
+        "config": {
+            "gte": "2016-08-31T00:00:00.000Z",
+            "lte": "2016-11-01T00:00:00.000Z"
+        }
+    }
+
+    # <50% cloud coverage
+    cloud_cover_filter = {
+        "type": "RangeFilter",
+        "field_name": "cloud_cover",
+        "config": {
+            "lte": 0.5
+        }
+    }
+
+    # combine our geo, date, cloud filters
+    combined_filter = {
+        "type": "AndFilter",
+        "config": [geometry_filter, date_range_filter, cloud_cover_filter]
+    }
+
+    return combined_filter
 
 """
 Helper Test function: check depth of nested list
@@ -176,16 +237,16 @@ def depth(seq):
 if __name__ == "__main__":
     
     # Extract county polygons from GeoJSON
-    county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
+    # county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
 
     # Extract county truth yields from csv
-    county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+    # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
 
     # Test county extraction
-    test_county_GeoJSON()
-    test_truth_yield()
-    test_define_county_geometry()
-
+    # test_county_GeoJSON()
+    # test_truth_yield()
+    # test_define_county_geometry()
+    test_define_county_geometry_pic_generation()
 
 
 
