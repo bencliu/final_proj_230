@@ -183,7 +183,8 @@ Helper Test function: define custom filter
 def test_filter():
     # generate county_polygons and filter
     county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
-    geojson = define_county_geometry(county_polygons[161])
+    geojson = fetchData.define_geometry()
+    # geojson = define_county_geometry(county_polygons[161])
 
     geometry_filter = {
         "type": "GeometryFilter",
@@ -197,7 +198,7 @@ def test_filter():
         "field_name": "acquired",
         "config": {
             "gte": "2016-08-31T00:00:00.000Z",
-            "lte": "2016-11-01T00:00:00.000Z"
+            "lte": "2016-10-01T00:00:00.000Z"
         }
     }
 
