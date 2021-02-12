@@ -201,8 +201,35 @@ def extract_assets(api_key, combined_filter):
         dateList.append(date)
         strips.append(strip)
 
-    stripDup = [k for k,v in Counter(strips).items() if v>1] #Detect strip duplicates
+    #stripDup = [k for k,v in Counter(strips).items() if v>1] Detect strip duplicates
     return asset_item_dictionary #Vector of items and corresponding assets
+
+"""
+**NOTE: WRAPPER FUNC FOR ORDERS.PY**
+Helper function: Extract items from search result post request
+- Accesses image IDs and sends get request to return image metadata
+
+@Param: API Key
+@Return: Dictionary mapping datetime objects to itemResult
+"""
+def extract_items(api_key, combined_filter):
+    print("Running extract_assets")
+    item_type = "PSScene4Band"
+    imageQ = search_image(api_key, combined_filter)
+
+    #Extract image IDs
+    image_ids = [feature['id'] for feature in imageQ.json()['features']]
+    print("Number of Images:", len(image_ids))
+
+    #Loop through images and gather relevant activation and metadata
+    item_dictionary = {}
+    for index in range(len(image_ids)):
+        assetResult, itemResult = get_item_asset(image_ids[index], item_type)
+        date = itemResult.json()["properties"]["acquired"]
+        dateTimeObj = dateutil.parser.isoparse(date)
+        item_dictionary[dateTimeObj] = itemResult
+
+    return item_dictionary #Vector of items and corresponding assets
 
 """
 Helper function: Separate time series vectors
@@ -212,15 +239,18 @@ Helper function: Separate time series vectors
 -Sort time objects 
 -Loop through and separate by changing dates
 """
-def split_into_time_series(assets_items):
+def split_into_time_series(assets_items, timeBuffer=3):
     #Sort dictionary
     print("STARTING Split Times")
     sorted_time_dict = OrderedDict(sorted(assets_items.items()))
     timeSliceDict = OrderedDict()
 
     #Loop through and separate time slices (Based on day in this implementation)
+    #Note: TimeBuffer value of 3 means time separation at day level,, 2 is month level
     for key, val in sorted_time_dict.items():
-        timeSliceIdentifier = datetime.datetime(key.year, key.month, key.day) #Separation by day as time slice
+        # Separation by day as time slice
+        timeSliceIdentifier = datetime.datetime(key.year, key.month, key.day) \
+            if timeBuffer==3 else datetime.datetime(key.year, key.month)
         if timeSliceIdentifier not in timeSliceDict:
             timeSliceDict[timeSliceIdentifier] = []
         timeSliceDict[timeSliceIdentifier].append(val)
@@ -230,30 +260,33 @@ def split_into_time_series(assets_items):
 
 """
 Helper function: Restructures data by collective landscape strips
-@Param: Takes in Dictionary of datetimeObjects: (assetResult, itemResult) vector
+Note: singleItem boolean refers to whether helper is processing tuple or itemResult single element
+@Param: Takes in Dictionary of datetimeObjects: (assetResult, itemResult) vector or (itemResult) vector
 @Return: Dictionary of dateTimeObjects: [Dictionary of stripIDs: (assetResult, itemResult) vector]
 """
-def split_by_strip(timeSliceDict):
+def split_by_strip(timeSliceDict, singleItem=False):
     split_time_dict = OrderedDict()
 
     #Loop through each time split
     for time_split, tupleVec in timeSliceDict.items():
-        strip_dictionary = separate_by_strips(tupleVec) #Construct Dictionary
+        strip_dictionary = separate_by_strips(tupleVec, singleItem=singleItem) #Construct Dictionary
         split_time_dict[time_split] = strip_dictionary #Update new dict
 
     return split_time_dict
 
 """
 Helper function: Separates vector of asset, item tuples into dictionary of splits
+Note: singleItem boolean refers to whether helper is processing tuple or itemResult single element
 @Param: item_asset_vector (Grouped by time slice)
 @Return: Dictionary mapping stripIDs to item_asset_vector
 """
-def separate_by_strips(item_asset_vec):
+def separate_by_strips(item_asset_vec, singleItem=False):
     strip_dict = {}
 
     #Loop through pairs
     for item_asset_pair in item_asset_vec:
-        stripid = item_asset_pair[1].json()["properties"]["strip_id"]
+        stripid = item_asset_pair.json()["properties"]["strip_id"] \
+            if singleItem else item_asset_pair[1].json()["properties"]["strip_id"]
         if stripid not in strip_dict: #Create new vector if new id
             strip_dict[stripid] = []
         strip_dict[stripid].append(item_asset_pair) #Add pair to vector corresponding to id

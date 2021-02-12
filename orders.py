@@ -15,6 +15,17 @@ PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
+#Import county extraction functions
+from extractCountyData import read_county_GeoJSON
+
+#Import download_asset functions
+from downAssets import extract_images, act_download_asset, parallelize, download_file
+
+#Import fetchData functions
+from fetchData import define_county_geometry, define_filters #Filter Functions
+from fetchData import search_image, get_item_asset, extract_assets, extract_items #Search Functions
+from fetchData import split_into_time_series, split_by_strip, separate_by_strips
+
 """
 Function: This function places the order based on inputted request using the order api
 @Param: Request for Order API as dict (contains name, list of products, tools etc.), requests.auth.HTTPBasicAuth using PLANET_API_KEY
@@ -67,13 +78,11 @@ https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/too
 """
 def download_order(order_url, auth, overwrite=False):
     r = requests.get(order_url, auth=auth)
-    print(r)
-    print(r.json())
     response = r.json()
     results = response['_links']['results']
-    results_urls = [r['location'] for r in results]
-    results_names = [r['name'] for r in results]
-    results_paths = [pathlib.Path(os.path.join('data', n)) for n in results_names]
+    results_urls = [r['location'] for r in results] #Download URLs
+    results_names = [r['name'] for r in results] #File links .tif
+    results_paths = [pathlib.Path(os.path.join('data', n)) for n in results_names] #Data/pathLib
     print('{} items to download'.format(len(results_urls)))
 
     for url, name, path in zip(results_urls, results_names, results_paths):
@@ -99,6 +108,118 @@ def show_rgb(img_file):
         b,g,r,n = src.read()
     rgb = np.stack((r,g,b), axis=0)
     show(rgb/rgb.max())
+
+
+
+
+
+
+"""
+Order pipeline: 
+- Process all counties
+- Generate tensor, crop yield pairs
+- Write to google buckets
+"""
+def integrated_order_pipe(county_dictionary):
+    #Loop through counties
+    for fipCode, coordinates in county_dictionary.items():
+        print("PROCESS NEW COUNTY")
+        #Attain Item IDs for County
+        geoFilter = define_county_geometry(coordinates)
+        searchFilter = combined_filter(geoFilter)
+        #id_vec = attain_itemids(searchFilter) #Deprecate
+
+        #Gather crop statistics => Label image IDs TODO
+        id_labeled_vec = process_crop_stats(searchFilter)
+
+        #Perform ordering and downloading of images (Code in tester)
+
+        #Multithreading Section
+        #Loop through image paths => Create array, assign crop state, write object to google storage
+
+        #Delete PSScene4Band FOlder
+
+def thread_process_image_wrapper(imagePath, cropState):
+    print("Starting thread image wrapper")
+
+
+def order_and_download(itemidVector):
+    print("Starting order and downloads")
+
+"""
+TODO
+Helper function: Returns labeled image_ids from specified filter TODO
+@Param: combined_filter
+@Return: Array of image_ids with crop labeling
+"""
+def process_crop_stats(combined_filter):
+    print("Starting to gather statistics")
+    item_asset_dict = extract_assets(PLANET_API_KEY, combined_filter)
+    timeSliceDict = split_into_time_series(item_asset_dict)
+    finalStruct = split_by_strip(timeSliceDict)
+    for time_split, strip_dict in finalStruct.item():
+        numStrips = len(strip_dict.keys())
+
+# Note: Currently commented out
+def attain_itemids(combined_filter):
+    item_type = "PSScene4Band"
+    imageQueue = search_image(PLANET_API_KEY, combined_filter) #TODO, add combined filter
+    image_ids = [feature['id'] for feature in imageQueue.json()['features']]
+    print("NUMBER OF IMAGES:", len(image_ids))
+    return image_ids
+
+"""
+CNN Baseline Test: 2019 Images August - November || 50% Cloud Cover
+"""
+def combined_filter(geojson):
+    # Geo Filter
+    geometry_filter = {
+        "type": "GeometryFilter",
+        "field_name": "geometry",
+        "config": geojson
+    }
+
+    # Date Range
+    date_range_filter = {
+        "type": "DateRangeFilter",
+        "field_name": "acquired",
+        "config": {
+            "gte": "2019-08-01T00:00:00.000Z",
+            "lte": "2019-11-01T20:00:00.000Z"
+        }
+    }
+
+    # <50% cloud coverage
+    cloud_cover_filter = {
+        "type": "RangeFilter",
+        "field_name": "cloud_cover",
+        "config": {
+            "lte": 0.5
+        }
+    }
+
+    # combine our geo, date, cloud filters
+    combined_filter = {
+        "type": "AndFilter",
+        "config": [geometry_filter, date_range_filter, cloud_cover_filter]
+    }
+
+    return combined_filter
+
+if __name__ == "__main__":
+    print("STARTING ORDERS PIPELINE")
+    county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
+    integrated_order_pipe(county_dictionary)
+
+
+
+
+
+
+"""
+OBSELETE TESTER FUNCTIONS
+"""
+
 
 """
 Test Function: Sandbox for formulating requests, experimenting with tools, and performing data downloads
@@ -164,14 +285,15 @@ def test_simple_download():
     print("starting download")
     downloaded_files = download_order(order_url, auth)
     print(downloaded_files)
-    # img_file = next(downloaded_files[d] for d in downloaded_files if d.endswith('_3B_AnalyticMS.tif'))
-    img_file = next(downloaded_files[d] for d in downloaded_files if d.endswith('_clip.tif'))
 
-    # Display image
-    show_rgb(img_file)
+    for result_names, result_paths in downloaded_files.items():
+        print(result_paths)
+        if result_paths.endswith('_clip.tif'):
+            show_rgb(result_paths)
+
     print("simple download test sucessful")
 
-if __name__ == "__main__":
 
-    # test simple download
-    test_simple_download()
+def test_images():
+    path = 'data/48dd6063-9a8f-4e59-b866-fd4473263d1a/PSScene4Band/20151119_025740_0c74_3B_AnalyticMS_clip.tif'
+    show_rgb(path)
