@@ -176,7 +176,7 @@ def test_define_county_geometry_pic_generation():
         plt.show()
     print("Completed verification for picture generation from county geometry")
 """
-Helper Test function: define custom filter
+Helper Test function: define custom filter (TODO)
 @Params: n/a
 @Return: filter
 """

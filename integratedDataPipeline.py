@@ -57,7 +57,7 @@ def integrated_download(nestedTimeSplitDict):
     for timeSplit, splitDictionary in nestedTimeSplitDict.items():
         for splitid, assetItemVec in splitDictionary.items():
 
-            #Create image vector for parallezing
+            #Create image vector for parallelizing
             assetVector = []
             for assetItemPair in assetItemVec:
                 asset = assetItemPair[0]
@@ -67,14 +67,48 @@ def integrated_download(nestedTimeSplitDict):
 
             #Nested dictionary repackaging
             splits = {splitid: imageArray} #splitID : imageArrays
-            nestedCountyArrays[timeSplit].append(splits) #timeSplit may have multiple splits
+            if not nestedCountyArrays[timeSplit.strftime("%m/%d/%Y")]:
+                nestedCountyArrays[timeSplit.strftime("%m/%d/%Y")] = [] #timeSplit may have multiple splits
+            nestedCountyArrays[timeSplit.strftime("%m/%d/%Y")].append(splits)
+
     return nestedCountyArrays
 
 """
-TODO: Need to define our scope of filter params
+Note: These are just sample filters, we can change them for our baseline
 """
-def combined_filter(geoFilter):
-    combined_filter = {}
+def combined_filter(geojson):
+    # Geo Filter
+    geometry_filter = {
+        "type": "GeometryFilter",
+        "field_name": "geometry",
+        "config": geojson
+    }
+
+    # Date Range
+    date_range_filter = {
+        "type": "DateRangeFilter",
+        "field_name": "acquired",
+        "config": {
+            "gte": "2018-09-02T00:00:00.000Z",
+            "lte": "2018-09-02T20:00:00.000Z"
+        }
+    }
+
+    # <50% cloud coverage
+    cloud_cover_filter = {
+        "type": "RangeFilter",
+        "field_name": "cloud_cover",
+        "config": {
+            "lte": 0.5
+        }
+    }
+
+    # combine our geo, date, cloud filters
+    combined_filter = {
+        "type": "AndFilter",
+        "config": [geometry_filter, date_range_filter, cloud_cover_filter]
+    }
+
     return combined_filter
 
 """
@@ -90,13 +124,17 @@ def integrated_pipeline(county_dictionary, root_path='../countyImages'):
         searchFilter = combined_filter(geoFilter)
 
         #Integrated search and download of county images
+        "CountyLevel: Start search for images"
         nestedTimeSplitStruct = integrated_search(searchFilter)
         countyImages = integrated_download(nestedTimeSplitStruct)
 
         #Store county images in pre-loadable file via pickle
-        fullPath = 'images/'+fipCode+'.pickle'
+        print("Starting pickle storing process for county")
+        fullPath = 'images/'+str(fipCode)+'.pickle'
         with open(fullPath, 'wb') as handle:
             pickle.dump(countyImages, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        print("Finished pickle storing process for county")
+        break
 
 
 #Helper to unserialize pickle data object
@@ -106,5 +144,26 @@ def retrievePickle(path):
         unserialized_data = pickle.load(handle)
         return unserialized_data
 
+"""
+Integrated pipeline tester:
+- Test one county
+- Notes: Works, but 18 images is stored on 2.64 GB. We'll have to use AWS for 
+- these operations
+"""
+def testOneCounty():
+    countyDict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
+    integrated_pipeline(countyDict)
+
+"""
+Unserialize and Analyze Pickled Objects
+"""
+def testPickledObject():
+    nestedCountyArray = retrievePickle("./images/1.pickle")
+    for timeSplits, splitArray in nestedCountyArray.items():
+        for splitDict in splitArray:
+            for splitid, split in splitDict.items():
+                print(split)
+
 if __name__ == "__main__":
-    print("Starting Integrted Data Pipeline")
+    print("Starting Integrated Data Pipeline")
+    testPickledObject()

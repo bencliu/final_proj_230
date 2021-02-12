@@ -18,6 +18,8 @@ from datetime import datetime
 import rasterio
 import tensorflow as tf
 import numpy as np
+import multiprocessing
+import uuid
 from collections import Counter
 
 # Import functions
@@ -30,6 +32,7 @@ PLANET_API_KEY = "b99bfe8b97d54205bccad513987bbc02"
 # Auth Setup
 session = requests.Session()
 session.auth = (PLANET_API_KEY, "")
+session.mount('http://', requests.adapters.HTTPAdapter(max_retries=7))
 
 """
 Helper test function:
@@ -61,7 +64,7 @@ Helper function:
         wait_exponential_max=10000)
 def act_download_asset(assetResult):
     #Activate asset for download
-    print("Start activating and downloading asset")
+    print("Start activating and downloading asset", multiprocessing.current_process())
 
     # Parse out useful links
     links = assetResult.json()[u"analytic"]["_links"]
@@ -80,6 +83,7 @@ def act_download_asset(assetResult):
         print("Exception reached")
         raise Exception("rate limit error")
 
+
     # Wait until activation complete, then print download link
     while True:
         activation_status_result = \
@@ -91,6 +95,8 @@ def act_download_asset(assetResult):
             download_link = activation_status_result.json()["location"]
             return download_link
             break
+        else:
+            print("Inactive:\n")
 """
 Wrapper function for parallelization:
 @Param: Download_link for image
@@ -111,14 +117,14 @@ def parallelize(asset_vector):
     #Activate thread pool
     imageTensorArray = thread_pool.map(download_process_wrapper, asset_vector)
     print("COMPLETE PARALLELIZING")
-    print(imageTensorArray)
     return imageTensorArray
 
 # Helper: Automatically download file given link
+@retry()
 def download_process_image(link="", path="./images"):
     #Download File
     print("DOWNLOADING FILE")
-    timestr = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] #Note change this to a unique identifier
+    timestr = str(uuid.uuid4()) #Note change this to a unique identifier
     timepath = os.path.join(path, timestr)
     urllib.request.urlretrieve(link, timepath)
     print("FINISHED DOWNLOADING FILE")
@@ -134,6 +140,7 @@ def download_process_image(link="", path="./images"):
     #Delete file
     print("DELETING FILE, FINISHED PROCESSING")
     os.remove(timepath)
+    print(imageTensor)
     return imageTensor
 
 
@@ -188,7 +195,7 @@ def test_image_dimensions():
 # Tests Parallel Processing: Simultaneous Image Downloading, Processing, Deletions
 def test_multithreaded_processing():
     combined_filter = define_filters()
-    assetResultsVector = extract_images(PLANET_API_KEY, 8, combined_filter)
+    assetResultsVector = extract_images(PLANET_API_KEY, 20, combined_filter)
     results = parallelize(assetResultsVector)
     for tensor in results:
         print(tensor.shape)
