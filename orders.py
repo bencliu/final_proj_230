@@ -15,8 +15,13 @@ PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
-# define helpful functions for submitting, polling, and downloading an order
-# reference: https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
+"""
+Function: This function places the order based on inputted request using the order api
+@Param: Request for Order API as dict (contains name, list of products, tools etc.), requests.auth.HTTPBasicAuth using PLANET_API_KEY
+@Return: url of order based off of order id (string)
+Directly adopted from following source:
+https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
+"""
 def place_order(request, auth):
     response = requests.post(orders_url, data=json.dumps(request), auth=auth, headers=headers)
     print(response)
@@ -29,6 +34,13 @@ def place_order(request, auth):
     order_url = orders_url + '/' + order_id
     return order_url
 
+"""
+Helper Function: This function will monitor and output the status of the request
+@Param: url of order based off of order id (string), requests.auth.HTTPBasicAuth using PLANET_API_KEY
+@Return: n/a
+Directly adopted from following source:
+https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
+"""
 def poll_for_success(order_url, auth, num_loops=50):
     count = 0
     while (count < num_loops):
@@ -44,6 +56,15 @@ def poll_for_success(order_url, auth, num_loops=50):
             break
         time.sleep(10)
 
+"""
+Function: Performs product download of requests into local directory (tif, xml, udm, etc.). A folder titled "data" will 
+be created and the raw data will reside in a subfolder titled by the item type.
+@Param: url of order based off of order id (string), requests.auth.HTTPBasicAuth using PLANET_API_KEY, overwrite boolean flag
+@Return: dictionary where keys = response names, vals = response contents
+***NOTE: This function doesn't actually need to return anything, but could be a mechanism to quickly file metadata
+Directly adopted from following source:
+https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
+"""
 def download_order(order_url, auth, overwrite=False):
     r = requests.get(order_url, auth=auth)
     print(r)
@@ -66,14 +87,24 @@ def download_order(order_url, auth, overwrite=False):
 
     return dict(zip(results_names, results_paths))
 
-# define helpful functions for visualizing downloaded imagery
+"""
+Helper Function: Outputs sample image
+@Param: File path
+@Return: n/a
+Directly adopted from following source:
+https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
+"""
 def show_rgb(img_file):
     with rasterio.open(img_file) as src:
         b,g,r,n = src.read()
     rgb = np.stack((r,g,b), axis=0)
     show(rgb/rgb.max())
 
-# simple download
+"""
+Test Function: Sandbox for formulating requests, experimenting with tools, and performing data downloads
+@Param: n/a
+@Return: n/a
+"""
 def test_simple_download():
 
     # define products
@@ -120,7 +151,7 @@ def test_simple_download():
     # define request
     request = {
         "name": "test download",
-        "products": multi_product,
+        "products": single_product,
         "tools": [clip]
         # "delivery": delivery
     }
@@ -132,6 +163,7 @@ def test_simple_download():
     poll_for_success(order_url, auth)
     print("starting download")
     downloaded_files = download_order(order_url, auth)
+    print(downloaded_files)
     # img_file = next(downloaded_files[d] for d in downloaded_files if d.endswith('_3B_AnalyticMS.tif'))
     img_file = next(downloaded_files[d] for d in downloaded_files if d.endswith('_clip.tif'))
 
