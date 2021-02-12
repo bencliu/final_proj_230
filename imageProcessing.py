@@ -35,29 +35,69 @@ def visualize_image(tif_path):
     return imarray
 
 """
-Function: Image processing
+Function: Simple image processing
 @param: Path of image TIFF file
 @return: b, g, r, n np arrays used to construct tensors of human-engineered features 
 """
 def simple_image_process(path):
+
     #Obtain image
     sat_data = rasterio.open(path)
 
-    #Image dimensions
-    width = sat_data.bounds.right - sat_data.bounds.left
-    height = sat_data.bounds.top - sat_data.bounds.bottom
-
-    # Upper left pixel
-    row_min = 0
-    col_min = 0
-
-    # Lower right pixel.  Rows and columns are zero indexing.
-    row_max = sat_data.height - 1
-    col_max = sat_data.width - 1
-
     # Conversion to numpy arrays
     b, g, r, n = sat_data.read()
+
     return np.array([b, g, r, n])
+
+"""
+Function: Image processing from image to tensor
+@param: Path of image TIFF file, max pixel height, max pixel width
+@return: image tensor with computed vegetation indices
+"""
+def image_process(path, maxH, maxW):
+
+    #Obtain image
+    raw_image = rasterio.open(path)
+    image = raw_image.read()
+
+    # center data
+    centered_data = standardize_image_np(image, maxH, maxW) # 2 seconds
+
+    # Conversion to numpy arrays
+    r, b, g, n = centered_data
+
+    # Construct image tensor
+    image_tensor = construct_tensors(b, g, r, n)
+
+    return image_tensor
+
+
+"""
+Test function: Verifies the image process conversion from .tif to computed tensor
+@Params: None
+@Return: None
+"""
+def test_image_process():
+
+    # sample image
+    image1 = "test_image1.tif"
+
+    # Assume inputs
+    maxH = 7000
+    maxW = 7000
+
+    # run function
+    start = time.time()
+    std_test_image1 = image_process(image1, maxH, maxW)
+    print(std_test_image1)
+    end = time.time()
+
+    # view sample output
+    fig = plt.imshow(std_test_image1[0])  # print out one band
+    plt.show()
+    print(std_test_image1.shape)
+
+    print("Image processing successfull:  " + str(end - start))
 
 """
 Function: Merge Strip Vectors (After cloud processing)
@@ -69,22 +109,20 @@ def merge_strip_vector(strip_vector):
     merged = np.sum(strip_vector, axis=0) #Collapse axis 0
     return (merged / length) #Average merged arrays
 
-
 """
 Function: Constructing Tensors:
 @param: b, g, r, n np feeder arrays
 @return: 3D tensor with human-engineered features
 """
 def construct_tensors(b, g, r, n):
-    b_t = tf.convert_to_tensor(b)
-    g_t = tf.convert_to_tensor(g)
-    r_t = tf.convert_to_tensor(r)
-    n_t = tf.convert_to_tensor(n)
-    ndvi = calculate_NDVI(n_t, r_t)
-    evi = calculate_EVI(b_t, r_t, n_t)
-    msavi = calculate_MSAVI(r_t, n_t)
-    t1 = tf.stack([b_t, g_t, r_t, n_t, ndvi, evi, msavi])
-    # t1 = tf.stack([b_t, g_t, r_t, n_t])
+    b_t = tf.convert_to_tensor(b) # 0.2 seconds
+    g_t = tf.convert_to_tensor(g) # 0.2 seconds
+    r_t = tf.convert_to_tensor(r) # 0.2 seconds
+    n_t = tf.convert_to_tensor(n) # 0.2 seconds
+    ndvi = calculate_NDVI(n_t, r_t) # 2 seconds
+    evi = calculate_EVI(b_t, r_t, n_t) # 2 seconds
+    msavi = calculate_MSAVI(r_t, n_t) # 2 seconds
+    t1 = tf.stack([b_t, g_t, r_t, n_t, ndvi, evi, msavi]) # 3 seconds
     return t1
 
 """
@@ -93,7 +131,8 @@ Function: Calculate NDVI (Normalized Difference Vegetation Index)
 @return: NDVI as tensor with shape (m,n)
 """
 def calculate_NDVI(n, r):
-    return (n-r)/(n+r)
+    epsilon = 1e-8
+    return (n-r)/(n+r+epsilon)
 
 """
 Function: Calculate EVI (Enhanced Vegetation Index)
@@ -184,7 +223,7 @@ def generate_indices(height_offset, width_offset, image_height, image_width):
 
 """
 Function: This function will standardize the input based on the maximum height and width of the largest image.
-@Params: image (tensor (bands, h, w)), max pixel height, max pixel width
+@Params: image (np.ndaary (bands, h, w)), max pixel height, max pixel width
 @Return: tensor (bands, h, w)
 Note: This is the optional version that assumes an np array input
 Note: This is approximately 25x faster than the tensorflow version
@@ -247,8 +286,10 @@ if __name__ == "__main__":
     print(tf.version.VERSION)"""
 
     # test image standardization
-    test_standardization()
-    test_standardization_np()
+    # test_standardization()
+    # test_standardization_np()
 
+    # test image process
+    test_image_process()
 
 
