@@ -7,8 +7,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7ZGEI2AHR" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 
 """
 Test function: This function performs a downloads a single product to the s3 bucket
@@ -84,5 +84,6 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230data')
 
     # Testing functions
-    test_write_to_s3()
+    test_tif(session)
+    #test_write_to_s3()
     # test_tif(session)
