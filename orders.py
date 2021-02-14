@@ -12,6 +12,8 @@ from requests.auth import HTTPBasicAuth
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
+AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7ZGEI2AHR" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
@@ -25,6 +27,16 @@ from downAssets import extract_images, act_download_asset, parallelize, download
 from fetchData import define_county_geometry, define_filters #Filter Functions
 from fetchData import search_image, get_item_asset, extract_assets, extract_items #Search Functions
 from fetchData import split_into_time_series, split_by_strip, separate_by_strips
+
+"""
+High_Level Notes:
+- ResultName is '41ac7935-979b-4014-b15b-11d6db775164/PSScene4Band/20151119_025740_0c74_3B_AnalyticMS_metadata_clip.xml'
+- Text after item_type is item_id (Before "analytic" in above example"
+"""
+
+"""
+Section: Core functionality for orders: 1) Request sending, 2) Queueing, 3) Downloading
+"""
 
 """
 Function: This function places the order based on inputted request using the order api
@@ -82,6 +94,7 @@ def download_order(order_url, auth, overwrite=False):
     results = response['_links']['results']
     results_urls = [r['location'] for r in results] #Download URLs
     results_names = [r['name'] for r in results] #File links .tif
+    print("RESULT NAMES:", results_names)
     results_paths = [pathlib.Path(os.path.join('data', n)) for n in results_names] #Data/pathLib
     print('{} items to download'.format(len(results_urls)))
 
@@ -115,6 +128,10 @@ def show_rgb(img_file):
 
 
 """
+Section: Core functionality for 1) Integrated order pipeline; 2) County yield labeling
+"""
+
+"""
 Order pipeline: 
 - Process all counties
 - Generate tensor, crop yield pairs
@@ -127,40 +144,131 @@ def integrated_order_pipe(county_dictionary):
         #Attain Item IDs for County
         geoFilter = define_county_geometry(coordinates)
         searchFilter = combined_filter(geoFilter)
-        #id_vec = attain_itemids(searchFilter) #Deprecate
+        id_vec = attain_itemids(searchFilter)
 
-        #Gather crop statistics => Label image IDs TODO
-        id_labeled_vec = process_crop_stats(searchFilter)
+        #Perform ordering and downloading of images (Code in tester) (Write to AWS)
+        order_and_download(id_vec, fipCode, coordinates)
+        print("COMPLETED S3 DOWNLOAD FOR {}".format(fipCode))
+        break #Remove once testing multiple counties
 
-        #Perform ordering and downloading of images (Code in tester)
+"""
+Integrated Function:
+- Obtains master dictionary of itemIDs to crop yields
+- Calls process_crop_stats helper for each county 
+"""
+def obtain_crop_labels(county_dictionary):
+    master_yield_id_dictionary = {}
+    #Loop through counties
+    for fipCode, coordinates in county_dictionary.items():
+        print("PROCESS NEW COUNTY")
+        #Attain Item IDs for County
+        geoFilter = define_county_geometry(coordinates)
+        searchFilter = combined_filter(geoFilter)
+        county_dict = process_crop_stats(searchFilter, fipCode)
+        master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
+    return master_yield_id_dictionary
 
-        #Multithreading Section
-        #Loop through image paths => Create array, assign crop state, write object to google storage
-
-        #Delete PSScene4Band FOlder
-
-def thread_process_image_wrapper(imagePath, cropState):
-    print("Starting thread image wrapper")
-
-
-def order_and_download(itemidVector):
+def order_and_download(itemidVector, fipCode, coordinates):
     print("Starting order and downloads")
+    # define products
+    single_product = [
+        {
+            "item_ids": itemidVector[:10],
+            "item_type": "PSScene4Band",
+            "product_bundle": "analytic"
+        }
+    ]
+
+    # define clip
+    clip_aoi = {
+        "type": "Polygon",
+        "coordinates": coordinates
+    }
+
+    clip = {
+        "clip": {
+            "aoi": clip_aoi
+        }
+    }
+
+    #TODO Chris: Can you figure out how we only write filed ending in 'MS_clip.tif' to S3?
+    path_prefix = str(fipCode)
+    # define delivery
+    delivery = {
+        "amazon_s3": {
+            "bucket": "cs230data",
+            "aws_region": "us-west-1",
+            "aws_access_key_id": AWS_SERVER_PUBLIC_KEY,
+            "aws_secret_access_key": AWS_SERVER_SECRET_KEY,
+            "path_prefix": path_prefix
+        }
+    }
+
+    # define request
+    request = {
+        "name": "County Download Test1",
+        "products": single_product,
+        "tools": [clip],
+        "delivery": delivery
+    }
+
+    # Perform Order
+    print("starting order")
+    order_url = place_order(request, auth)
+    print("starting polling")
+    poll_for_success(order_url, auth)
+    print("Completed Order and Download to AWS")
 
 """
 TODO
-Helper function: Returns labeled image_ids from specified filter TODO
+Helper function: Returns dictionary of image_ids corresponding to crop yield labels (TODO)
 @Param: combined_filter
 @Return: Array of image_ids with crop labeling
 """
-def process_crop_stats(combined_filter):
+def process_crop_stats(combined_filter, fip_code):
     print("Starting to gather statistics")
-    item_asset_dict = extract_assets(PLANET_API_KEY, combined_filter)
-    timeSliceDict = split_into_time_series(item_asset_dict)
-    finalStruct = split_by_strip(timeSliceDict)
-    for time_split, strip_dict in finalStruct.item():
-        numStrips = len(strip_dict.keys())
+    item_asset_dict = extract_items(PLANET_API_KEY, combined_filter)
+    timeSliceDict = split_into_time_series(item_asset_dict, timeBuffer=2) #Split into months
+    #Dictionary Time Split {Dictionary of StripID : Vector of Activated Items}
+    finalStruct = split_by_strip(timeSliceDict, singleItem=True)
+    image_to_yield_dict = {}
 
-# Note: Currently commented out
+    #Loop through time splits
+    for time_split, strip_dict in finalStruct.items():
+        #Gathered from groundtruth
+        cropYieldInTimeSplit = yield_for_time_split(time_split, fip_code) #TODO, FIll in with County Data Extraction
+        numStrips = len(strip_dict.keys())
+        #Yield for each strip
+        yieldPerStrip = cropYieldInTimeSplit / numStrips
+
+        #Loop through each strip
+        for stripid, itemVec in strip_dict.items():
+            #Obtain yield per each image **Naively depends on num images**
+            numImages = len(itemVec)
+            yieldPerImage = yieldPerStrip / numImages
+            #Assign crop yields to each image: Update dictionary with itemID, yield
+            for image in itemVec:
+                itemid = image.json()["properties"]["id"]
+                image_to_yield_dict[itemid] = yieldPerImage
+    return image_to_yield_dict
+
+"""
+Return crop yield for given time split
+@Param: Date time object
+@Return: Crop yield (Float) for given time split
+
+TODO CHRIS:
+- leverage code from read_county_GeoJSON(filename: str)
+- obtain "county string name" from FIP code
+- Use "county string name" to fetch the yearly yield from Illnois_CornGrain_Truth_Data
+- Use csv to pandas function
+- DateTime documentation: https://docs.python.org/3/library/datetime.html
+"""
+def yield_for_time_split(dateTime, fipCode):
+    countyName = "TODO" #TODO CHRIS
+    yearYield = 0 #TODO Chris
+    return yearYield / 12 #Current proposed time step is by month
+
 def attain_itemids(combined_filter):
     item_type = "PSScene4Band"
     imageQueue = search_image(PLANET_API_KEY, combined_filter) #TODO, add combined filter
@@ -206,6 +314,8 @@ def combined_filter(geojson):
 
     return combined_filter
 
+
+
 if __name__ == "__main__":
     print("STARTING ORDERS PIPELINE")
     county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
@@ -215,12 +325,9 @@ if __name__ == "__main__":
 
 
 
-
 """
 OBSELETE TESTER FUNCTIONS
 """
-
-
 """
 Test Function: Sandbox for formulating requests, experimenting with tools, and performing data downloads
 @Param: n/a
@@ -288,12 +395,11 @@ def test_simple_download():
 
     for result_names, result_paths in downloaded_files.items():
         print(result_paths)
-        if result_paths.endswith('_clip.tif'):
+        if str(result_paths).endswith('MS_clip.tif'):
             show_rgb(result_paths)
 
     print("simple download test sucessful")
-
-
+    
 def test_images():
     path = 'data/48dd6063-9a8f-4e59-b866-fd4473263d1a/PSScene4Band/20151119_025740_0c74_3B_AnalyticMS_clip.tif'
     show_rgb(path)
