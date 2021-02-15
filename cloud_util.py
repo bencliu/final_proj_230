@@ -86,4 +86,3 @@ if __name__ == "__main__":
     # Testing functions
     test_tif(session)
     #test_write_to_s3()
-    # test_tif(session)

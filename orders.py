@@ -8,6 +8,7 @@ import rasterio
 from rasterio.plot import show
 import requests
 from requests.auth import HTTPBasicAuth
+import datetime
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
@@ -18,7 +19,7 @@ auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
 #Import county extraction functions
-from extractCountyData import read_county_GeoJSON
+from extractCountyData import read_county_GeoJSON, read_county_truth
 
 #Import download_asset functions
 from downAssets import extract_images, act_download_asset, parallelize, download_file
@@ -155,8 +156,12 @@ def integrated_order_pipe(county_dictionary):
 Integrated Function:
 - Obtains master dictionary of itemIDs to crop yields
 - Calls process_crop_stats helper for each county 
+@ Params: 
+    - county_dictionary of dict[County FIP: List[List[Coordinates]]]
+    - county_truth of dict[County FIP: dict[year, yield]]
+
 """
-def obtain_crop_labels(county_dictionary):
+def obtain_crop_labels(county_dictionary, county_truth):
     master_yield_id_dictionary = {}
     #Loop through counties
     for fipCode, coordinates in county_dictionary.items():
@@ -164,7 +169,7 @@ def obtain_crop_labels(county_dictionary):
         #Attain Item IDs for County
         geoFilter = define_county_geometry(coordinates)
         searchFilter = combined_filter(geoFilter)
-        county_dict = process_crop_stats(searchFilter, fipCode)
+        county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
         master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
     return master_yield_id_dictionary
 
@@ -222,10 +227,13 @@ def order_and_download(itemidVector, fipCode, coordinates):
 """
 TODO
 Helper function: Returns dictionary of image_ids corresponding to crop yield labels (TODO)
-@Param: combined_filter
+@Param: 
+    - combined_filter dict
+    - fip_code int
+    - county_truth dict[County FIP: dict[year, yield]]
 @Return: Array of image_ids with crop labeling
 """
-def process_crop_stats(combined_filter, fip_code):
+def process_crop_stats(combined_filter, fip_code, county_truth):
     print("Starting to gather statistics")
     item_asset_dict = extract_items(PLANET_API_KEY, combined_filter)
     timeSliceDict = split_into_time_series(item_asset_dict, timeBuffer=2) #Split into months
@@ -236,7 +244,7 @@ def process_crop_stats(combined_filter, fip_code):
     #Loop through time splits
     for time_split, strip_dict in finalStruct.items():
         #Gathered from groundtruth
-        cropYieldInTimeSplit = yield_for_time_split(time_split, fip_code) #TODO, FIll in with County Data Extraction
+        cropYieldInTimeSplit = yield_for_time_split(time_split, fip_code, county_truth) #TODO, FIll in with County Data Extraction
         numStrips = len(strip_dict.keys())
         #Yield for each strip
         yieldPerStrip = cropYieldInTimeSplit / numStrips
@@ -254,7 +262,10 @@ def process_crop_stats(combined_filter, fip_code):
 
 """
 Return crop yield for given time split
-@Param: Date time object
+@Param: 
+    - Date time object
+    - fip code int 
+    - county_truth dict[County FIP: dict[year, yield]]
 @Return: Crop yield (Float) for given time split
 
 TODO CHRIS:
@@ -264,10 +275,27 @@ TODO CHRIS:
 - Use csv to pandas function
 - DateTime documentation: https://docs.python.org/3/library/datetime.html
 """
-def yield_for_time_split(dateTime, fipCode):
-    countyName = "TODO" #TODO CHRIS
-    yearYield = 0 #TODO Chris
+def yield_for_time_split(dateTime, fipCode, county_truth):
+    year = dateTime.year
+    yearYield = county_truth[fipCode][int(year)]
     return yearYield / 12 #Current proposed time step is by month
+"""
+Test function: Verifies the yield_for_time_split function
+"""
+def test_yield_for_time_split():
+
+    print("starting test for yield_for_time_split function")
+
+    # Test parameters
+    dateTime_sample = datetime.datetime(2019, 5, 17)
+    FIPS_sample = 1 # Adams County
+
+    # Create truth dictionaray
+    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+    yearYield = yield_for_time_split(dateTime_sample, FIPS_sample, county_truth)
+    assert(yearYield*12 == 49.8)
+
+    print("Simple test for yield_for_time_split complete")
 
 def attain_itemids(combined_filter):
     item_type = "PSScene4Band"
@@ -317,9 +345,12 @@ def combined_filter(geojson):
 
 
 if __name__ == "__main__":
-    print("STARTING ORDERS PIPELINE")
+    """print("STARTING ORDERS PIPELINE")
     county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
-    integrated_order_pipe(county_dictionary)
+    integrated_order_pipe(county_dictionary)"""
+
+    test_yield_for_time_split()
+
 
 
 
