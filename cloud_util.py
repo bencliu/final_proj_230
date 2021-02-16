@@ -7,8 +7,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7ZGEI2AHR" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 """
 Test function: This function performs a downloads a single product to the s3 bucket
