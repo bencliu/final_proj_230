@@ -83,12 +83,5 @@ if __name__ == "__main__":
     s3 = session.resource('s3')
     bucket = s3.Bucket('cs230data')
 
-    # Testing functions
-<<<<<<< HEAD
     test_tif(session)
-    #test_write_to_s3()
-=======
-    #test_tif(session)
     test_write_to_s3()
-    # test_tif(session)
->>>>>>> Minimal changes to pull
