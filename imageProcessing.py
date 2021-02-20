@@ -58,6 +58,7 @@ def simple_image_process(path):
     return np.array([b, g, r, n])
 
 """
+**Integrated function**
 Function: Image processing from image to tensor
 @param: Path of image TIFF file, max pixel height, max pixel width
 @return: image tensor with computed vegetation indices

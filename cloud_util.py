@@ -38,7 +38,7 @@ def test_write_to_s3():
             "aws_region": "us-west-1",
             "aws_access_key_id": AWS_SERVER_PUBLIC_KEY,
             "aws_secret_access_key": AWS_SERVER_SECRET_KEY,
-            "path_prefix": "test"
+            "path_prefix": "test3"
         }
     }
 
@@ -84,5 +84,11 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230data')
 
     # Testing functions
+<<<<<<< HEAD
     test_tif(session)
     #test_write_to_s3()
+=======
+    #test_tif(session)
+    test_write_to_s3()
+    # test_tif(session)
+>>>>>>> Minimal changes to pull

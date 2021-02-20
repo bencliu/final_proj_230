@@ -135,8 +135,7 @@ Section: Core functionality for 1) Integrated order pipeline; 2) County yield la
 """
 Order pipeline: 
 - Process all counties
-- Generate tensor, crop yield pairs
-- Write to google buckets
+- Write images to AWS buckets 
 """
 def integrated_order_pipe(county_dictionary):
     #Loop through counties
@@ -178,7 +177,7 @@ def order_and_download(itemidVector, fipCode, coordinates):
     # define products
     single_product = [
         {
-            "item_ids": itemidVector[:10],
+            "item_ids": itemidVector[:2],
             "item_type": "PSScene4Band",
             "product_bundle": "analytic"
         }
@@ -197,7 +196,7 @@ def order_and_download(itemidVector, fipCode, coordinates):
     }
 
     #TODO Chris: Can you figure out how we only write filed ending in 'MS_clip.tif' to S3?
-    path_prefix = str(fipCode)
+    path_prefix = "county" + str(fipCode)
     # define delivery
     delivery = {
         "amazon_s3": {
@@ -256,7 +255,7 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
             yieldPerImage = yieldPerStrip / numImages
             #Assign crop yields to each image: Update dictionary with itemID, yield
             for image in itemVec:
-                itemid = image.json()["properties"]["id"]
+                itemid = image.json()["properties"]["id"] #Can add other metadata from the itemResult
                 image_to_yield_dict[itemid] = yieldPerImage
     return image_to_yield_dict
 
@@ -392,18 +391,10 @@ def test_simple_download():
                          [94.81858044862747, 15.894323164978303],
                          [94.81858044862747, 15.858073043526062]]]
     }
+
     clip = {
         "clip": {
             "aoi": clip_aoi
-        }
-    }
-
-    # define delivery
-    delivery = {
-        "google_cloud_storage": {
-            "bucket": "blah...",
-            "credentials": "blah...",
-            "path_prefix": "blah..."
         }
     }
 
