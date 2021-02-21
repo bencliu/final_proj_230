@@ -9,8 +9,8 @@ from requests.auth import HTTPBasicAuth
 import tensorflow as tf
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7UIUP2FOS" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
