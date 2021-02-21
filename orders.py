@@ -174,7 +174,6 @@ def order_and_download(itemidVector, fipCode, coordinates):
         }
     }
 
-    #TODO Chris: Can you figure out how we only write filed ending in 'MS_clip.tif' to S3?
     path_prefix = "county" + str(fipCode)
     # define delivery
     delivery = {
@@ -235,7 +234,8 @@ def obtain_crop_labels(county_dictionary, county_truth):
         searchFilter = combined_filter(geoFilter)
         county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
         print("Pre-Num items in master:", len(master_yield_id_dictionary.keys()))
-        master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
+        # master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
+        master_yield_id_dictionary = {**master_yield_id_dictionary, **county_dict} # Need to be compatabile with 3.8
         print("Post-Num items in master:", len(master_yield_id_dictionary.keys()))
         break #TODO Delete this after testing
     print("Number of items in master:", len(master_yield_id_dictionary.keys()))
@@ -278,12 +278,34 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
             for image in itemVec:
                 #TODONOW, Currently Debugging
                 prop = image.json()
-                print("PROP:", prop)
-                print("ACQUIRED:", image.json()['properties']['acquired'])
+                # print("PROP:", prop)
+                # print("ACQUIRED:", image.json()['properties']['acquired'])
                 itemid = image.json()['id'] #Can add other metadata from the itemResult
                 print(itemid)
                 image_to_yield_dict[itemid] = yieldPerImage
+
     return image_to_yield_dict
+
+def test_process_crop_statistics(image_to_yield_dict):
+
+    # Test Case
+    fip_code = 1
+    dateTime_sample = datetime.datetime(2019, 10, 15)
+
+    # Create truth dictionaray and confirm yield
+    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+    yearYield = yield_for_time_split(dateTime_sample, fip_code, county_truth)
+    assert (yearYield * 12 == 49.8)
+
+    # Verify yield per strip calculations
+    assert(round(image_to_yield_dict["20191012_150709_1049"] * 3 * 9, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_150714_1049"] * 3 * 9, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_162948_1035"] * 3 * 4, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_162955_1035"] * 3 * 4, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191013_164837_82_1057"] * 2 * 5, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191013_164845_96_1057"] * 2 * 5, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191014_150319_1054"] * 4 * 3, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191014_150321_1054"] * 4 * 3, 2) == round(yearYield, 2))
 
 """
 Return crop yield for given time split
@@ -371,11 +393,14 @@ if __name__ == "__main__":
     """
 
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
-    county_truth = read_county_truth(filename='json_store/Ilinois_CornGrain_Truth_Data.csv')
+    county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     dict = obtain_crop_labels(county_dict, county_truth)
     print("Keys:", len(dict.keys()))
     print("Vals:", len(dict.values()))
     print(dict)
+
+    # test function
+    test_process_crop_statistics(dict)
 
 
 
