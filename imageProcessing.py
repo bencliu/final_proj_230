@@ -62,8 +62,9 @@ def simple_image_process(path):
 Function: Image processing from image to tensor
 @param: Path of image TIFF file, max pixel height, max pixel width
 @return: image tensor with computed vegetation indices
+TODO: Change max height and max width parameters
 """
-def image_process(session, path, maxH, maxW):
+def image_process(session, path, maxH=10000, maxW=10000):
 
     with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
                       aws_access_key_id=AWS_SERVER_PUBLIC_KEY,

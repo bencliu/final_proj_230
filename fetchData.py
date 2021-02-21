@@ -229,7 +229,7 @@ def extract_items(api_key, combined_filter):
         dateTimeObj = dateutil.parser.isoparse(date)
         item_dictionary[dateTimeObj] = itemResult
 
-    return item_dictionary #Vector of items and corresponding assets
+    return item_dictionary #Dictionary of dateTimeObjects with ItemResults
 
 """
 Helper function: Separate time series vectors
@@ -239,7 +239,7 @@ Helper function: Separate time series vectors
 -Sort time objects 
 -Loop through and separate by changing dates
 """
-def split_into_time_series(assets_items, timeBuffer=3):
+def split_into_time_series(assets_items):
     #Sort dictionary
     print("STARTING Split Times")
     sorted_time_dict = OrderedDict(sorted(assets_items.items()))
@@ -249,8 +249,7 @@ def split_into_time_series(assets_items, timeBuffer=3):
     #Note: TimeBuffer value of 3 means time separation at day level,, 2 is month level
     for key, val in sorted_time_dict.items():
         # Separation by day as time slice
-        timeSliceIdentifier = datetime.datetime(key.year, key.month, key.day) \
-            if timeBuffer==3 else datetime.datetime(key.year, key.month)
+        timeSliceIdentifier = datetime.datetime(key.year, key.month, key.day)
         if timeSliceIdentifier not in timeSliceDict:
             timeSliceDict[timeSliceIdentifier] = []
         timeSliceDict[timeSliceIdentifier].append(val)

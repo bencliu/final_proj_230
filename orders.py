@@ -13,8 +13,8 @@ import datetime
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7UIUP2FOS" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
@@ -36,7 +36,7 @@ High_Level Notes:
 """
 
 """
-Section: Core functionality for orders: 1) Request sending, 2) Queueing, 3) Downloading
+SECTION: Core functionality for orders: 1) Request sending, 2) Queueing, 3) Downloading
 """
 
 """
@@ -129,7 +129,7 @@ def show_rgb(img_file):
 
 
 """
-Section: Core functionality for 1) Integrated order pipeline; 2) County yield labeling
+SECTION: Core functionality for 1) Integrated order pipeline; 2) Order Filtering
 """
 
 """
@@ -150,27 +150,6 @@ def integrated_order_pipe(county_dictionary):
         order_and_download(id_vec, fipCode, coordinates)
         print("COMPLETED S3 DOWNLOAD FOR {}".format(fipCode))
         break #Remove once testing multiple counties
-
-"""
-Integrated Function:
-- Obtains master dictionary of itemIDs to crop yields
-- Calls process_crop_stats helper for each county 
-@ Params: 
-    - county_dictionary of dict[County FIP: List[List[Coordinates]]]
-    - county_truth of dict[County FIP: dict[year, yield]]
-
-"""
-def obtain_crop_labels(county_dictionary, county_truth):
-    master_yield_id_dictionary = {}
-    #Loop through counties
-    for fipCode, coordinates in county_dictionary.items():
-        print("PROCESS NEW COUNTY")
-        #Attain Item IDs for County
-        geoFilter = define_county_geometry(coordinates)
-        searchFilter = combined_filter(geoFilter)
-        county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
-        master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
-    return master_yield_id_dictionary
 
 def order_and_download(itemidVector, fipCode, coordinates):
     print("Starting order and downloads")
@@ -223,9 +202,47 @@ def order_and_download(itemidVector, fipCode, coordinates):
     poll_for_success(order_url, auth)
     print("Completed Order and Download to AWS")
 
+
+
+
+
+
+
+
+
 """
-TODO
-Helper function: Returns dictionary of image_ids corresponding to crop yield labels (TODO)
+SECTION: Core functionality for LABELING: 
+1) Obtaining crop yields in master dictionary
+2) Processing crop statistics for each county
+3) Attaining yield for designated time splits
+"""
+
+"""
+Integrated Function:
+- Obtains master dictionary of itemIDs to crop yields
+- Calls process_crop_stats helper for each county 
+@ Params: 
+    - county_dictionary of dict[County FIP: List[List[Coordinates]]]
+    - county_truth of dict[County FIP: dict[year, yield]]
+"""
+def obtain_crop_labels(county_dictionary, county_truth):
+    master_yield_id_dictionary = {}
+    #Loop through counties
+    for fipCode, coordinates in county_dictionary.items():
+        print("PROCESS NEW COUNTY")
+        #Attain Item IDs for County
+        geoFilter = define_county_geometry(coordinates)
+        searchFilter = combined_filter(geoFilter)
+        county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
+        print("Pre-Num items in master:", len(master_yield_id_dictionary.keys()))
+        master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
+        print("Post-Num items in master:", len(master_yield_id_dictionary.keys()))
+        break #TODO Delete this after testing
+    print("Number of items in master:", len(master_yield_id_dictionary.keys()))
+    return master_yield_id_dictionary
+
+"""
+Helper function: Returns dictionary of image_ids corresponding to crop yield labels 
 @Param: 
     - combined_filter dict
     - fip_code int
@@ -233,29 +250,38 @@ Helper function: Returns dictionary of image_ids corresponding to crop yield lab
 @Return: Array of image_ids with crop labeling
 """
 def process_crop_stats(combined_filter, fip_code, county_truth):
-    print("Starting to gather statistics")
+    print("STARTING TO GATHER CROP STATISTICS")
     item_asset_dict = extract_items(PLANET_API_KEY, combined_filter)
-    timeSliceDict = split_into_time_series(item_asset_dict, timeBuffer=2) #Split into months
-    #Dictionary Time Split {Dictionary of StripID : Vector of Activated Items}
+    timeSliceDict = split_into_time_series(item_asset_dict) #Split into months
+
+    #Dictionary Time Split : {Dictionary of StripID : Vector of Activated Items}
     finalStruct = split_by_strip(timeSliceDict, singleItem=True)
     image_to_yield_dict = {}
 
     #Loop through time splits
     for time_split, strip_dict in finalStruct.items():
         #Gathered from groundtruth
-        cropYieldInTimeSplit = yield_for_time_split(time_split, fip_code, county_truth) #TODO, FIll in with County Data Extraction
+        cropYieldInTimeSplit = yield_for_time_split(time_split, fip_code, county_truth)
         numStrips = len(strip_dict.keys())
+
         #Yield for each strip
         yieldPerStrip = cropYieldInTimeSplit / numStrips
+        print("YIELD PER STRIP:", yieldPerStrip)
 
         #Loop through each strip
         for stripid, itemVec in strip_dict.items():
             #Obtain yield per each image **Naively depends on num images**
             numImages = len(itemVec)
             yieldPerImage = yieldPerStrip / numImages
+            print("YIELD PER image:", yieldPerImage)
             #Assign crop yields to each image: Update dictionary with itemID, yield
             for image in itemVec:
-                itemid = image.json()["properties"]["id"] #Can add other metadata from the itemResult
+                #TODONOW, Currently Debugging
+                prop = image.json()
+                print("PROP:", prop)
+                print("ACQUIRED:", image.json()['properties']['acquired'])
+                itemid = image.json()['id'] #Can add other metadata from the itemResult
+                print(itemid)
                 image_to_yield_dict[itemid] = yieldPerImage
     return image_to_yield_dict
 
@@ -266,13 +292,6 @@ Return crop yield for given time split
     - fip code int 
     - county_truth dict[County FIP: dict[year, yield]]
 @Return: Crop yield (Float) for given time split
-
-TODO CHRIS:
-- leverage code from read_county_GeoJSON(filename: str)
-- obtain "county string name" from FIP code
-- Use "county string name" to fetch the yearly yield from Illnois_CornGrain_Truth_Data
-- Use csv to pandas function
-- DateTime documentation: https://docs.python.org/3/library/datetime.html
 """
 def yield_for_time_split(dateTime, fipCode, county_truth):
     year = dateTime.year
@@ -302,6 +321,7 @@ def attain_itemids(combined_filter):
     image_ids = [feature['id'] for feature in imageQueue.json()['features']]
     print("NUMBER OF IMAGES:", len(image_ids))
     return image_ids
+
 
 """
 CNN Baseline Test: 2019 Images August - November || 50% Cloud Cover
@@ -344,11 +364,19 @@ def combined_filter(geojson):
 
 
 if __name__ == "__main__":
-    """print("STARTING ORDERS PIPELINE")
+    """
+    print("STARTING ORDERS PIPELINE")
     county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
-    integrated_order_pipe(county_dictionary)"""
+    integrated_order_pipe(county_dictionary)
+    """
 
-    test_yield_for_time_split()
+    county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
+    county_truth = read_county_truth(filename='json_store/Ilinois_CornGrain_Truth_Data.csv')
+    dict = obtain_crop_labels(county_dict, county_truth)
+    print("Keys:", len(dict.keys()))
+    print("Vals:", len(dict.values()))
+    print(dict)
+
 
 
 
