@@ -27,8 +27,8 @@ import boto3
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
-AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7ZGEI2AHR" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 """
 Function: Visualize image
@@ -61,7 +61,7 @@ def simple_image_process(path):
 **Integrated function**
 Function: Image processing from image to tensor
 @param: Path of image TIFF file, max pixel height, max pixel width
-@return: image tensor with computed vegetation indices
+@return: image np.ndarray with computed vegetation indices with shape (# channels, H, W)
 TODO: Change max height and max width parameters
 """
 def image_process(session, path, maxH=10000, maxW=10000):
@@ -111,8 +111,8 @@ def construct_tensors(b, g, r, n):
     ndvi = calculate_NDVI(n, r)
     evi = calculate_EVI(b, r, n)
     msavi = calculate_MSAVI(r, n)
-    stacked = np.stack((b, g, r, n, ndvi, evi, msavi)) # 3 seconds
-    t1 = tf.convert_to_tensor(stacked)
+    t1 = np.stack((b, g, r, n, ndvi, evi, msavi)) # 3 seconds
+    # t1 = tf.convert_to_tensor(stacked)
 
     """b_t = tf.convert_to_tensor(b) # 0.2 seconds
     g_t = tf.convert_to_tensor(g) # 0.2 seconds
@@ -228,30 +228,11 @@ def standardize_image_np(image, maxH, maxW):
         image_slice = np.zeros((maxH, maxW))
         image_slice[height_offset:height_offset + image[band].shape[0], width_offset:width_offset + image[band].shape[1]] = image[band]
         # image_slice = np.pad(image[band], (height_offset, width_offset), 'constant', constant_values = 0)
-        print(image_slice.shape)
+        # print(image_slice.shape)
         reference[band] = image_slice
 
     # return stacked image
     return reference
-
-
-if __name__ == "__main__":
-    print("Starting...")
-    """tiff_path = "../ArchiveData/planet_sample1.tiff"
-    visualize_image(tiff_path)
-    print(tf.version.VERSION)"""
-
-    # test image standardization
-    # test_standardization()
-    # test_standardization_np()
-    # test_image_process()
-    # test_cloud_image_process()
-
-
-
-"""
-Obselete Test Functions
-"""
 
 
 """
@@ -284,9 +265,28 @@ def test_cloud_image_process():
     fig = plt.imshow(std_test_image1[0])  # print out one band
     plt.show()
     print(std_test_image1.shape)
+    print(type(std_test_image1))
 
     print("Image processing successfull:  " + str(end - start))
 
+
+if __name__ == "__main__":
+    print("Starting...")
+    """tiff_path = "../ArchiveData/planet_sample1.tiff"
+    visualize_image(tiff_path)
+    print(tf.version.VERSION)"""
+
+    # test image standardization
+    # test_standardization()
+    # test_standardization_np()
+    # test_image_process()
+    test_cloud_image_process()
+
+
+
+"""
+Obselete Test Functions
+"""
 
 """
 Test function: Verification of the standardization algorithm for a sample image
