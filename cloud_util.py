@@ -34,6 +34,7 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
             image_tensor = image_process(session, fileName)
             ml_example = (image_tensor, cropStat)
 
+            #TODO CHRIS
             #Write into AWS folder titled "images"
             #Store example into pickle
             byteObject = pickle.dumps(ml_example)
