@@ -10,8 +10,8 @@ import tensorflow as tf
 import numpy as np
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "AKIAIUSJNZMIIW6JRUWQ" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
