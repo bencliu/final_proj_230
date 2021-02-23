@@ -13,6 +13,8 @@ from itertools import chain, count
 import downAssets
 import fetchData
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 """
 Function: Extracts the county FIPS code and polygon coordinates into a dictionary
@@ -79,6 +81,70 @@ def read_county_truth(filename: str):
     
     # return nested dictionary of dict[County FIP: dict[year, yield]]
     return county_truth_yields
+
+"""
+Test Function: verifies the binning functions
+@Params: n/a
+@Return: n/a
+"""
+def test_data_distribution():
+    print("--- starting test for data distribution ---")
+    bins_array = truth_data_distribution(filename = "json_store/Illinois_Soybeans_Truth_Data.csv", num_classes = 10)
+    test_array = np.array([20, 38, 45])
+    print(bin_truth_data(test_array, bins_array)) # should print 1, 2, 4
+    print("--- test complete ---")
+
+"""
+Function: This function bins the truth data based on the classification split
+@Params: truth_data of shape (# of examples, 1), binned ranges np.array
+@Returns: array of shape (# of examples, 1) binned into the given number of classes
+"""
+def bin_truth_data(truth_data, bins_array):
+    binned_truth = np.digitize(truth_data, bins_array)
+    return binned_truth
+
+"""
+Function: Determine distribution of truth data and split output range of classes 
+@Params: county truth dict[County FIP: dict[year, yield]]
+@Return: Array form of quantile split of data
+"""
+def truth_data_distribution(filename: str, num_classes = 10):
+
+    # Extract all yields
+    yields = []
+    with open(filename, 'r') as file:
+        reader = csv.reader(file, delimiter=',', skipinitialspace=True)
+        next(reader)
+        for row in reader:
+            yields.append(float(row[-2]))
+
+    # Perform the quantile cut
+    np.random.seed(42)
+    test_list_rnd = np.array(yields) + np.random.random(len(yields))  # add noise to data
+    test_series = pd.Series(test_list_rnd, name='value_rank')
+    split_df = pd.qcut(test_series, q=num_classes, retbins=True, labels=False)
+    # split_df = pd.qcut(yields, q=num_classes)
+    bins = split_df[1]
+    return bins
+
+if __name__ == "__main__":
+    
+    # Extract county polygons from GeoJSON
+    # county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
+
+    # Extract county truth yields from csv
+    # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+
+    # Test county extraction
+    # test_county_GeoJSON()
+    # test_truth_yield()
+    # test_define_county_geometry()
+    # test_define_county_geometry_pic_generation()
+    test_data_distribution()
+
+"""
+Archive Functions ===============================================================
+"""
 
 """
 Test function: Yield extraction
@@ -233,21 +299,5 @@ def depth(seq):
             seq = chain.from_iterable(s for s in seq if isinstance(s, Sequence))
     except StopIteration:
         return level
-
-
-if __name__ == "__main__":
-    
-    # Extract county polygons from GeoJSON
-    # county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
-
-    # Extract county truth yields from csv
-    # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
-
-    # Test county extraction
-    # test_county_GeoJSON()
-    # test_truth_yield()
-    # test_define_county_geometry()
-    test_define_county_geometry_pic_generation()
-
 
 
