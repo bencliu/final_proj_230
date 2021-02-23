@@ -13,6 +13,8 @@ import time
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
+from dataGenerator import DataGenerator
+from extractCountyData import truth_data_distribution, bin_truth_data
 
 """
 Function: Split into train/dev/test and perform pre-procesing of data
@@ -165,6 +167,7 @@ if __name__ == "__main__":
     keras.backend.clear_session()
     tf.random.set_seed(42)
     np.random.seed(42)
+    bin_array = truth_data_distribution(filename = "json_store/Illinois_Soybeans_Truth_Data.csv", num_classes = 10)
 
     # Load Raw Data
     X, y = np.load('training_set_with_labels.npy')

@@ -10,8 +10,8 @@ import tensorflow as tf
 import numpy as np
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIAIUSJNZMIIW6JRUWQ" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
@@ -41,7 +41,7 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
             cropStat = cropLabels[id]
 
             #Attain image + package
-            image_tensor = np.array([image_process(session, fileName)]) #TODO CHRIS
+            image_tensor = np.array([image_process(session, 's3://cs230data/' + fileName)])
             print("SHAPE:", image_tensor.shape)
             assert image_tensor.shape[0] == 1
             masterTensorArray= np.append(masterTensorArray, image_tensor, axis=0)
