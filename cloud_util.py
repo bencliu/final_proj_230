@@ -7,13 +7,18 @@ import requests
 import pickle
 from requests.auth import HTTPBasicAuth
 import tensorflow as tf
+import numpy as np
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7TAMPCLMU" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
+from orders import obtain_crop_labels
+
+#Import county extraction functions
+from extractCountyData import read_county_GeoJSON, read_county_truth
 
 """
 Integrated Function: Crawl through AWS Bucket images
@@ -22,25 +27,39 @@ Integrated Function: Crawl through AWS Bucket images
 3) Store into correct file location
 """
 def s3ProcessLabelImage(bucket, session, cropLabels):
+    print("STARTING S3 PROCESSING")
+    masterTensorArray = np.array([])
+    masterLabelArray = np.array([])
+    idArray = np.array([])
     for obj in bucket.objects.all():
         fileName = obj.key
         if fileName.endswith('AnalyticMS_clip.tif'):
+            print("PROCESSING REAL IMAGE")
             #Obtain crop label for image
-            idSplit1 = fileName.split("Scene4Band/")[1]
-            id = idSplit1.split("_AnalyticMS_")[0]
+            idSplit1 = fileName.split("Scene4Band/")[1] #After "Scene4Band"
+            id = idSplit1.split("_3B_AnalyticMS_")[0] #Before "AnalyticMS"
             cropStat = cropLabels[id]
 
             #Attain image + package
-            image_tensor = image_process(session, fileName)
-            ml_example = (image_tensor, cropStat)
+            image_tensor = np.array([image_process(session, fileName)]) #TODO CHRIS
+            print("SHAPE:", image_tensor.shape)
+            assert image_tensor.shape[0] == 1
+            masterTensorArray= np.append(masterTensorArray, image_tensor, axis=0)
+            masterLabelArray = np.append(masterLabelArray, cropStat)
+            idArray = np.append(idArray, id)
+            print("FINISHED PROCESSING REAL IMAGE")
+            break
 
-            #TODO CHRIS
-            #Write into AWS folder titled "images"
-            #Store example into pickle
-            byteObject = pickle.dumps(ml_example)
-            objectKey = "imageTensors1/" + str(id)
-            object = s3.Object(Bucket='cs230data', Key=objectKey)
-            object.put(Body=byteObject)
+    return (masterTensorArray, masterLabelArray, idArray)
+
+#Writes master example dictionary to npy file
+def writeToNpy(path, dictionary):
+    np.save(path, dictionary)
+
+#Loads npy path into dictionary of examples
+def loadFromNpy(path):
+    exampleDictionary = np.load(path)
+
 
 """
 TODO Chris: Write Tensor to S3 folder
@@ -67,6 +86,18 @@ def getImageTensors(s3, key):
     decoded = data.get('Body').decode()
     return decoded
 
+"""
+Run and store crop labels to test first county
+"""
+def obtainAndStoreCropLabels():
+    county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
+    county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
+    cropLabels = obtain_crop_labels(county_dict, county_truth)
+
+    path = "json_store/labels_c1"
+    outfile = open(path, 'wb')
+    pickle.dump(cropLabels, outfile)
+    outfile.close()
 
 if __name__ == "__main__":
 
@@ -78,9 +109,19 @@ if __name__ == "__main__":
     s3 = session.resource('s3')
     bucket = s3.Bucket('cs230data')
 
-    s4 = session.client('s3')
-    testerWriteRandomString(s4)
-    print(getImageTensors(s4, "Hello"))
+    #obtainAndStoreCropLabels()
+    infile = open("json_store/labels_c1", 'rb')
+    cropLabels = pickle.load(infile)
+    infile.close()
+    
+    print("FIRST IDS", list(cropLabels.keys())[:10])
+    print("FIRST CROP STATS", list(cropLabels.values())[:10])
+    s3ProcessLabelImage(bucket, session, cropLabels)
+
+
+
+
+
 
 
 """

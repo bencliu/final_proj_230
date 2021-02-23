@@ -186,6 +186,20 @@ if __name__ == "__main__":
     # NN_model = keras.models.load_model("TBD_name_model.h5") # load in previous model to evaluate
     NN_model.evaluate(X_test, y_test)"""
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 """
 Archived Functions =====================================================================
 """
@@ -252,7 +266,7 @@ def test_workflow_CIFAR10():
     tf.random.set_seed(42)
     np.random.seed(42)
 
-    # Load Raw Data
+    # Load Raw Data TODONOW
     raw_data = tf.keras.datasets.cifar10.load_data()
 
     # apply pre-processing and split data-set
