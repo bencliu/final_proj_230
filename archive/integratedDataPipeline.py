@@ -151,7 +151,7 @@ Integrated pipeline tester:
 - these operations
 """
 def testOneCounty():
-    countyDict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
+    countyDict = read_county_GeoJSON(filename='../json_store/Illinois_counties.geojson')
     integrated_pipeline(countyDict)
 
 """
