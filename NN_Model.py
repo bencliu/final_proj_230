@@ -5,7 +5,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import optimizers
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
-    MaxPooling2D
+    MaxPooling2D, BatchNormalization
 from keras.layers import LSTM
 from keras import callbacks
 import tensorflow.keras.backend as K
@@ -14,6 +14,7 @@ import time
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
+import kerastuner as kt
 from extractCountyData import truth_data_distribution
 
 class VanillaModel():
@@ -26,15 +27,88 @@ class VanillaModel():
         self.history = None
         self.data_generator = None #TODO Add here
 
-    def define_init(self):
-        #Sequential neural net model definition
+    def define_compile(self, hp):
+        #Sequential neural net model definition, Note: FilterSize, KernelSize
+        modelTemp = keras.models.Sequential([
+            keras.layers.Conv2D(128, 3, activation="relu", padding="same", input_shape=[7000, 7000, 7]),
+            keras.layers.Conv2D(128, 3, activation="relu", padding="same"),
+            keras.layers.MaxPooling2D(2),
+            keras.layers.Conv2D(266, 3, activation="relu", padding="same"),
+            keras.layers.Conv2D(256, 3, activation="relu", padding="same"),
+            keras.layers.MaxPooling2D(2),
+            keras.layers.Conv2D(512, 3, activation="relu", padding="same"),
+            keras.layers.Conv2D(512, 3, activation="relu", padding="same"),
+            keras.layers.MaxPooling2D(2),
+            keras.layers.Flatten(),
+            keras.layers.Dense(256, activation="relu"),
+            keras.layers.BatchNormalization(),
+            keras.layers.Dropout(0.5),
+            keras.layers.Dense(128, activation="relu"),
+            keras.layers.BatchNormalization(),
+            keras.layers.Dropout(0.5),
+            keras.layers.Dense(64, activation="relu"),
+            keras.layers.BatchNormalization(),
+            keras.layers.Dropout(0.5),
+            keras.layers.Dense(10, activation="softmax"),
+        ])
+        self.model = modelTemp
 
-    def compile(self):
-        #Compile model with given optimizer, hyperparameters
+        # Hyperparameters
+        hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+        hp_batch_size = hp.Int('batch_size', min_value=32, max_value=480, step=32)
+        selected_optimizer = optimizers.Adam(lr=hp_learning_rate,
+                                             beta_1=0.9,
+                                             beta_2=0.999)
+        self.model.compile(loss="sparse_categorical_crossentropy",
+                      optimizer=selected_optimizer,
+                      metrics=["accuracy"],
+                      batch_size=hp_batch_size)
+
+        return self.model
+
 
     def train(self):
-        #Train model and store in model parameters
-        self.history = None #TODO
+        #Instantiate tuner for hypertuning, code reference: Tensorflow documentation
+        #Note: Might be erros in the model callable
+        tuner = kt.Hyperband(self.define_compile,
+                             objective='val_accuracy',
+                             max_epochs=10,
+                             factor=3,
+                             directory='json-store',
+                             project_name='vanilla_cnn')
+
+        # Define model callbacks
+        checkpoint_cb = callbacks.ModelCheckpoint("vanilla_model.h5")  # TODO: Model naming convention
+        early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        run_logdir = get_run_logdir()
+        tensorboard_cb = callbacks.TensorBoard(run_logdir)
+
+        # Search for Optimal Hyperparameters
+        tuner.search(self.trainX, self.trainY, epochs=50, validation_split=0.2, callbacks=[early_stopping_tuning_cb])
+        best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+        print("Hyperparameter searching complete")
+
+        # Train modl with Optimal hyperparameters
+        bestModel = tuner.hypermodel.build(best_hps)
+        history = bestModel.fit(self.trainX,
+                               self.trainY,
+                               epochs=200,
+                               shuffle=True,
+                               validation_split=0.2,
+                               callbacks=[checkpoint_cb, early_stopping_tuning_cb, tensorboard_cb])
+        return history
+
+"""
+Questions / TODO List for Model Definition:
+1. Difference between batch_size specification in .fit vs .compile
+2. Patience, CB hyperparameters
+3. Validation_split vs. validation_sets
+4. Looking at notes for other hyperparameters and settings to be aware of
+"""
+
+
+
+
 
 
 """
@@ -82,80 +156,16 @@ def split_raw_data(X, y, train_size = 0.8, val_size = 0.1, test_size = 0.1):
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-"""
-Function: Function that defines the NN architecture (based on reference paper)
-@Params: None
-@Return: Keras sequential model
-Note: Reference architecture for CNN from https://github.com/brad-ross/crop-yield-prediction-project/tree/master/model
-"""
-def NN_model_definition():
 
-    # Define sequential model
-    model = keras.models.Sequential()
 
-    # CNN Definition
-    model.add(Conv2D(128, kernel_size=3, padding="same", activation="relu", strides=1, input_shape=(7, 5000, 5000))) #Todo: Put in input shape
-    model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
-    model.add(Conv2D(128, kernel_size=3, padding="same", activation="relu", strides=1))
-    model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
 
-    model.add(Conv2D(256, kernel_size=3, padding="same", activation="relu", strides=1))
-    model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
-    model.add(Conv2D(256, kernel_size=3, padding="same", activation="relu", strides=2))
-    model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
 
-    model.add(Conv2D(512, kernel_size=3, padding="same", activation="relu", strides=1))
-    model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
-    model.add(Conv2D(512, kernel_size=3, padding="same", activation="relu", strides=2))
-    model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
-    model.add(Conv2D(512, kernel_size=3, padding="same", activation="relu", strides=2))
-    model.add(BatchNormalization())
-    model.add(Dropout(rate=0.5))
 
-    model.add(layers.Flatten())
-    model.add(layers.Dense(2048))  # Todo: Fix last layer
-
-    # output model summary
-    model.summary()
-
-    # Compile model
-    selected_optimizer = optimizers.Adam(lr=0.001,
-                                         beta_1=0.9,
-                                         beta_2=0.999)
-    model.compile(loss="sparse_categorical_crossentropy",
-                  optimizer=selected_optimizer,
-                  metrics=["accuracy"])
-
-    return model
 
 """
-Function: Function that contains all the options/config for model training
-@Params: NN model Keras Object, X Train, y train, X val, y val
-@Return: History object of trained model
+Analyze Data + Run Integrated Model Step
 """
-def train_model(NN_model, X_train, y_train, X_valid, y_valid):
 
-    # Define model callbacks
-    checkpoint_cb = callbacks.ModelCheckpoint("sandbox_model.h5") #TODO: Model naming convention
-    early_stopping_cb = callbacks.EarlyStopping(patience=5, restore_best_weights=True)
-    run_logdir = get_run_logdir()
-    tensorboard_cb = callbacks.TensorBoard(run_logdir)
-
-    # Fit model
-    history = NN_model.fit(X_train,
-                           y_train,
-                           batch_size = 64,
-                           epochs = 5,
-                           shuffle = True,
-                           validation_data = (X_valid, y_valid),
-                           callbacks=[checkpoint_cb, early_stopping_cb, tensorboard_cb])
-    return history
 
 """
 Helper Function: This function creates a path to the store the logs for the NN model training run
@@ -449,3 +459,80 @@ def NN_hybrid_model_definition_():
                   metrics=["accuracy"])
 
     return model
+
+
+"""
+Function: Function that defines the NN architecture (based on reference paper)
+@Params: None
+@Return: Keras sequential model
+Note: Reference architecture for CNN from https://github.com/brad-ross/crop-yield-prediction-project/tree/master/model
+"""
+def NN_model_definition():
+
+    # Define sequential model
+    model = keras.models.Sequential()
+
+    # CNN Definition
+    model.add(Conv2D(128, kernel_size=3, padding="same", activation="relu", strides=1, input_shape=(7, 5000, 5000))) #Todo: Put in input shape
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+    model.add(Conv2D(128, kernel_size=3, padding="same", activation="relu", strides=1))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+
+    model.add(Conv2D(256, kernel_size=3, padding="same", activation="relu", strides=1))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+    model.add(Conv2D(256, kernel_size=3, padding="same", activation="relu", strides=2))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+
+    model.add(Conv2D(512, kernel_size=3, padding="same", activation="relu", strides=1))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+    model.add(Conv2D(512, kernel_size=3, padding="same", activation="relu", strides=2))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+    model.add(Conv2D(512, kernel_size=3, padding="same", activation="relu", strides=2))
+    model.add(BatchNormalization())
+    model.add(Dropout(rate=0.5))
+
+    model.add(layers.Flatten())
+    model.add(layers.Dense(2048))  # Todo: Fix last layer
+
+    # output model summary
+    model.summary()
+
+    # Compile model
+    selected_optimizer = optimizers.Adam(lr=0.001,
+                                         beta_1=0.9,
+                                         beta_2=0.999)
+    model.compile(loss="sparse_categorical_crossentropy",
+                  optimizer=selected_optimizer,
+                  metrics=["accuracy"])
+
+    return model
+
+"""
+Function: Function that contains all the options/config for model training
+@Params: NN model Keras Object, X Train, y train, X val, y val
+@Return: History object of trained model
+"""
+def train_model(NN_model, X_train, y_train, X_valid, y_valid):
+
+    # Define model callbacks
+    checkpoint_cb = callbacks.ModelCheckpoint("sandbox_model.h5") #TODO: Model naming convention
+    early_stopping_cb = callbacks.EarlyStopping(patience=5, restore_best_weights=True)
+    run_logdir = get_run_logdir()
+    tensorboard_cb = callbacks.TensorBoard(run_logdir)
+
+    # Fit model
+    history = NN_model.fit(X_train,
+                           y_train,
+                           batch_size = 64,
+                           epochs = 5,
+                           shuffle = True,
+                           validation_data = (X_valid, y_valid),
+                           callbacks=[checkpoint_cb, early_stopping_cb, tensorboard_cb])
+    return history
+
