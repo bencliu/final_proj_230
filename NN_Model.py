@@ -16,6 +16,27 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from extractCountyData import truth_data_distribution
 
+class VanillaModel():
+    def __init__(self):
+        self.width = 10000
+        self.height = 10000
+        self.numChannels = 7
+        self.inputShape = (self.width, self.height, self.numChannels)
+        self.model = None
+        self.history = None
+        self.data_generator = None #TODO Add here
+
+    def define_init(self):
+        #Sequential neural net model definition
+
+    def compile(self):
+        #Compile model with given optimizer, hyperparameters
+
+    def train(self):
+        #Train model and store in model parameters
+        self.history = None #TODO
+
+
 """
 Function: Split into train/dev/test and perform pre-procesing of data
 @Param: X np.ndarray of shape (# samples, # channels, H, W), y np.ndarray of shape (# samples, 1)
@@ -163,6 +184,7 @@ def analyze_data(history):
 if __name__ == "__main__":
 
 
+    """
     # run logistics
     keras.backend.clear_session()
     tf.random.set_seed(42)
@@ -180,6 +202,7 @@ if __name__ == "__main__":
     
     # Train Model
     history = train_model(NN_model, X_train, y_train, X_valid, y_valid)
+    """
 
     """
     # Plot Metrics
