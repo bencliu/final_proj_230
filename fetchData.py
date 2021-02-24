@@ -160,6 +160,7 @@ def get_item_asset(id, item_type):
             auth=HTTPBasicAuth(PLANET_API_KEY, '')
         )
 
+    # TODO Chris: Error for crop labels may lie here; perhaps we need to look into skipping itemResults that are activated unsuccessfully
     # Returns JSON metadata for item corresponding to this ID
     itemResult = \
         requests.get(
