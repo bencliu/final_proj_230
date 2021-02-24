@@ -7,6 +7,7 @@ import numpy as np
 import rasterio
 from rasterio.plot import show
 import requests
+import pickle
 from requests.auth import HTTPBasicAuth
 import datetime
 
@@ -139,7 +140,7 @@ def order_and_download(itemidVector, fipCode, coordinates):
     # define products
     single_product = [
         {
-            "item_ids": itemidVector[:2],
+            "item_ids": itemidVector,
             "item_type": "PSScene4Band",
             "product_bundle": "analytic"
         }
@@ -272,8 +273,30 @@ Return crop yield for given time split
 """
 def yield_for_time_split(dateTime, fipCode, county_truth):
     year = dateTime.year
-    yearYield = county_truth[fipCode][int(year)]
-    return yearYield / 12 #Current proposed time step is by month
+    yearYield = 0
+
+    yearArray = county_truth[fipCode].keys() #Year list only
+
+    if year not in yearArray: #Not in year array, take averages of left and right neighbors
+        leftYear = int(year) - 1
+        rightYear = int(year) + 1
+
+        if year > max(yearArray): #Already at the right border
+            rightYear = yearArray[-1]
+            leftYear = yearArray[-2]
+        elif year < min(yearArray):
+            leftYear = yearArray[0]
+            rightYear = yearArray[1]
+        else:
+            while leftYear not in yearArray:
+                leftYear -= 1
+            while rightYear not in yearArray:
+                rightYear += 1
+            yearYield = (county_truth[fipCode][leftYear] + county_truth[fipCode][rightYear]) / 2 #Average of left and right neighbors
+    else:
+        yearYield = county_truth[fipCode][year]
+
+    return yearYield / 12
 
 
 def attain_itemids(combined_filter):
@@ -345,20 +368,28 @@ def test_process_crop_statistics(image_to_yield_dict):
 
 if __name__ == "__main__":
 
-    """print("STARTING ORDERS PIPELINE")
+    """
+    print("STARTING ORDERS PIPELINE")
     county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties_visvalingam_weighted_20.geojson')
-    integrated_order_pipe(county_dictionary)"""
+    integrated_order_pipe(county_dictionary)
+    # test function
+    #test_process_crop_statistics(dict)
+    """
 
-
+    print("Starting to collect labels")
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
-    dict = obtain_crop_labels(county_dict, county_truth)
+    cropLabels = obtain_crop_labels(county_dict, county_truth)
+    print("Finished collecting labels")
     print("Keys:", len(dict.keys()))
     print("Vals:", len(dict.values()))
-    print(dict)
 
-    # test function
-    test_process_crop_statistics(dict)
+    path = "json_store/labels_all"
+    outfile = open(path, 'wb')
+    pickle.dump(cropLabels, outfile)
+    outfile.close()
+
+
 
 
 
