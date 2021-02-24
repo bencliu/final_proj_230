@@ -31,6 +31,7 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
     masterTensorArray = np.array([])
     masterLabelArray = np.array([])
     idArray = np.array([])
+    masterTensorEmptyFlag = True
     for obj in bucket.objects.all():
         fileName = obj.key
         if fileName.endswith('AnalyticMS_clip.tif'):
@@ -42,13 +43,16 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
 
             #Attain image + package
             image_tensor = np.array([image_process(session, 's3://cs230data/' + fileName)])
-            print("SHAPE:", image_tensor.shape)
+            print("MASTER_TENSOR SHAPE:", masterTensorArray.shape)
             assert image_tensor.shape[0] == 1
-            masterTensorArray= np.append(masterTensorArray, image_tensor, axis=0)
+            if (not masterTensorEmptyFlag):
+                masterTensorArray= np.append(masterTensorArray, image_tensor, axis=0)
+            else:
+                masterTensorArray = image_tensor
+                masterTensorEmptyFlag = False
             masterLabelArray = np.append(masterLabelArray, cropStat)
             idArray = np.append(idArray, id)
             print("FINISHED PROCESSING REAL IMAGE")
-            break
 
     return (masterTensorArray, masterLabelArray, idArray)
 
