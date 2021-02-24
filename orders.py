@@ -13,8 +13,8 @@ import datetime
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIAIKIF2RFKG3KM3ALQ" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
@@ -110,23 +110,6 @@ def download_order(order_url, auth, overwrite=False):
 
     return dict(zip(results_names, results_paths))
 
-"""
-Helper Function: Outputs sample image
-@Param: File path
-@Return: n/a
-Directly adopted from following source:
-https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
-"""
-def show_rgb(img_file):
-    with rasterio.open(img_file) as src:
-        b,g,r,n = src.read()
-    rgb = np.stack((r,g,b), axis=0)
-    show(rgb/rgb.max())
-
-
-
-
-
 
 """
 SECTION: Core functionality for 1) Integrated order pipeline; 2) Order Filtering
@@ -149,7 +132,7 @@ def integrated_order_pipe(county_dictionary):
         #Perform ordering and downloading of images (Code in tester) (Write to AWS)
         order_and_download(id_vec, fipCode, coordinates)
         print("COMPLETED S3 DOWNLOAD FOR {}".format(fipCode))
-        break #Remove once testing multiple counties
+        break
 
 def order_and_download(itemidVector, fipCode, coordinates):
     print("Starting order and downloads")
@@ -202,13 +185,6 @@ def order_and_download(itemidVector, fipCode, coordinates):
     print("Completed Order and Download to AWS")
 
 
-
-
-
-
-
-
-
 """
 SECTION: Core functionality for LABELING: 
 1) Obtaining crop yields in master dictionary
@@ -226,6 +202,7 @@ Integrated Function:
 """
 def obtain_crop_labels(county_dictionary, county_truth):
     master_yield_id_dictionary = {}
+
     #Loop through counties
     for fipCode, coordinates in county_dictionary.items():
         print("PROCESS NEW COUNTY")
@@ -237,7 +214,6 @@ def obtain_crop_labels(county_dictionary, county_truth):
         # master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
         master_yield_id_dictionary = {**master_yield_id_dictionary, **county_dict} # Need to be compatabile with 3.8
         print("Post-Num items in master:", len(master_yield_id_dictionary.keys()))
-        break #TODO Delete this after testing
     print("Number of items in master:", len(master_yield_id_dictionary.keys()))
     return master_yield_id_dictionary
 
@@ -286,27 +262,6 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
 
     return image_to_yield_dict
 
-def test_process_crop_statistics(image_to_yield_dict):
-
-    # Test Case
-    fip_code = 1
-    dateTime_sample = datetime.datetime(2019, 10, 15)
-
-    # Create truth dictionaray and confirm yield
-    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
-    yearYield = yield_for_time_split(dateTime_sample, fip_code, county_truth)
-    assert (yearYield * 12 == 49.8)
-
-    # Verify yield per strip calculations
-    assert(round(image_to_yield_dict["20191012_150709_1049"] * 3 * 9, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191012_150714_1049"] * 3 * 9, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191012_162948_1035"] * 3 * 4, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191012_162955_1035"] * 3 * 4, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191013_164837_82_1057"] * 2 * 5, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191013_164845_96_1057"] * 2 * 5, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191014_150319_1054"] * 4 * 3, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191014_150321_1054"] * 4 * 3, 2) == round(yearYield, 2))
-
 """
 Return crop yield for given time split
 @Param: 
@@ -319,23 +274,7 @@ def yield_for_time_split(dateTime, fipCode, county_truth):
     year = dateTime.year
     yearYield = county_truth[fipCode][int(year)]
     return yearYield / 12 #Current proposed time step is by month
-"""
-Test function: Verifies the yield_for_time_split function
-"""
-def test_yield_for_time_split():
 
-    print("starting test for yield_for_time_split function")
-
-    # Test parameters
-    dateTime_sample = datetime.datetime(2019, 5, 17)
-    FIPS_sample = 1 # Adams County
-
-    # Create truth dictionaray
-    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
-    yearYield = yield_for_time_split(dateTime_sample, FIPS_sample, county_truth)
-    assert(yearYield*12 == 49.8)
-
-    print("Simple test for yield_for_time_split complete")
 
 def attain_itemids(combined_filter):
     item_type = "PSScene4Band"
@@ -383,14 +322,33 @@ def combined_filter(geojson):
 
     return combined_filter
 
+def test_process_crop_statistics(image_to_yield_dict):
 
+    # Test Case
+    fip_code = 1
+    dateTime_sample = datetime.datetime(2019, 10, 15)
+
+    # Create truth dictionaray and confirm yield
+    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+    yearYield = yield_for_time_split(dateTime_sample, fip_code, county_truth)
+    assert (yearYield * 12 == 49.8)
+
+    # Verify yield per strip calculations
+    assert(round(image_to_yield_dict["20191012_150709_1049"] * 3 * 9, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_150714_1049"] * 3 * 9, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_162948_1035"] * 3 * 4, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_162955_1035"] * 3 * 4, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191013_164837_82_1057"] * 2 * 5, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191013_164845_96_1057"] * 2 * 5, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191014_150319_1054"] * 4 * 3, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191014_150321_1054"] * 4 * 3, 2) == round(yearYield, 2))
 
 if __name__ == "__main__":
-    """
-    print("STARTING ORDERS PIPELINE")
-    county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
-    integrated_order_pipe(county_dictionary)
-    """
+
+    """print("STARTING ORDERS PIPELINE")
+    county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties_visvalingam_weighted_20.geojson')
+    integrated_order_pipe(county_dictionary)"""
+
 
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
@@ -411,6 +369,20 @@ if __name__ == "__main__":
 """
 OBSELETE TESTER FUNCTIONS
 """
+
+"""
+Helper Function: Outputs sample image
+@Param: File path
+@Return: n/a
+Directly adopted from following source:
+https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
+"""
+def show_rgb(img_file):
+    with rasterio.open(img_file) as src:
+        b,g,r,n = src.read()
+    rgb = np.stack((r,g,b), axis=0)
+    show(rgb/rgb.max())
+
 """
 Test Function: Sandbox for formulating requests, experimenting with tools, and performing data downloads
 @Param: n/a
@@ -478,3 +450,42 @@ def test_simple_download():
 def test_images():
     path = 'data/48dd6063-9a8f-4e59-b866-fd4473263d1a/PSScene4Band/20151119_025740_0c74_3B_AnalyticMS_clip.tif'
     show_rgb(path)
+
+def test_process_crop_statistics(image_to_yield_dict):
+
+    # Test Case
+    fip_code = 1
+    dateTime_sample = datetime.datetime(2019, 10, 15)
+
+    # Create truth dictionaray and confirm yield
+    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+    yearYield = yield_for_time_split(dateTime_sample, fip_code, county_truth)
+    assert (yearYield * 12 == 49.8)
+
+    # Verify yield per strip calculations
+    assert(round(image_to_yield_dict["20191012_150709_1049"] * 3 * 9, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_150714_1049"] * 3 * 9, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_162948_1035"] * 3 * 4, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191012_162955_1035"] * 3 * 4, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191013_164837_82_1057"] * 2 * 5, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191013_164845_96_1057"] * 2 * 5, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191014_150319_1054"] * 4 * 3, 2) == round(yearYield, 2))
+    assert(round(image_to_yield_dict["20191014_150321_1054"] * 4 * 3, 2) == round(yearYield, 2))
+
+"""
+Test function: Verifies the yield_for_time_split function
+"""
+def test_yield_for_time_split():
+
+    print("starting test for yield_for_time_split function")
+
+    # Test parameters
+    dateTime_sample = datetime.datetime(2019, 5, 17)
+    FIPS_sample = 1 # Adams County
+
+    # Create truth dictionaray
+    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+    yearYield = yield_for_time_split(dateTime_sample, FIPS_sample, county_truth)
+    assert(yearYield*12 == 49.8)
+
+    print("Simple test for yield_for_time_split complete")
