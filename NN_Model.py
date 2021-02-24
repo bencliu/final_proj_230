@@ -15,17 +15,21 @@ import math
 import pandas as pd
 import matplotlib.pyplot as plt
 import kerastuner as kt
+from dataGenerator import DataGenerator
+from cloud_util import s3ProcessLabelImage
 from extractCountyData import truth_data_distribution
 
 class VanillaModel():
     def __init__(self):
-        self.width = 10000
-        self.height = 10000
+        self.width = 8000
+        self.height = 8000
         self.numChannels = 7
         self.inputShape = (self.width, self.height, self.numChannels)
         self.model = None
         self.history = None
-        self.data_generator = None #TODO Add here
+        self.genParams = None
+        self.train_generator = None
+        self.validation_generator = None
 
     def define_compile(self, hp):
         #Sequential neural net model definition, Note: FilterSize, KernelSize
@@ -55,21 +59,28 @@ class VanillaModel():
 
         # Hyperparameters
         hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
-        hp_batch_size = hp.Int('batch_size', min_value=32, max_value=480, step=32)
+        hp_batch_size = hp.Choice('batch_size', values=[32, 64])
         selected_optimizer = optimizers.Adam(lr=hp_learning_rate,
                                              beta_1=0.9,
                                              beta_2=0.999)
         self.model.compile(loss="sparse_categorical_crossentropy",
                       optimizer=selected_optimizer,
                       metrics=["accuracy"],
-                      batch_size=hp_batch_size)
+                      batch_size=hp_batch_size) #Batch_size can be changed to hp_batch_size
+
+        # Parameters
+        self.genParams = {'dim': (7000, 7000),
+                  'batch_size': hp_batch_size,
+                  'n_classes': 10,
+                  'n_channels': 7,
+                  'shuffle': True}
 
         return self.model
 
 
     def train(self):
-        #Instantiate tuner for hypertuning, code reference: Tensorflow documentation
-        #Note: Might be erros in the model callable
+        # Instantiate tuner for hypertuning, code reference: Tensorflow documentation
+        # Note: Might be erros in the model callable
         tuner = kt.Hyperband(self.define_compile,
                              objective='val_accuracy',
                              max_epochs=10,
@@ -78,24 +89,32 @@ class VanillaModel():
                              project_name='vanilla_cnn')
 
         # Define model callbacks
-        checkpoint_cb = callbacks.ModelCheckpoint("vanilla_model.h5")  # TODO: Model naming convention
+        checkpoint_cb = callbacks.ModelCheckpoint("vanilla_model.h5")
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
 
-        # Search for Optimal Hyperparameters
-        tuner.search(self.trainX, self.trainY, epochs=50, validation_split=0.2, callbacks=[early_stopping_tuning_cb])
-        best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
-        print("Hyperparameter searching complete")
+        # Datasets: TODO, place various arguments in the s3ProcessLabelImage()
+        _, _, _, labels, partition = s3ProcessLabelImage()
 
-        # Train modl with Optimal hyperparameters
+        # Generators
+        self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)
+        self.validation_generator = DataGenerator(partition['validation'], labels, **self.genParams)
+
+        # Search for Optimal Hyperparameters: TODO, Fix this tuning procedure
+        tuner.search(self.train_generator, validation_data=self.validation_generator, epochs=50, callbacks=[early_stopping_tuning_cb])
+        best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+
+        # Train model with Optimal hyperparameters
         bestModel = tuner.hypermodel.build(best_hps)
-        history = bestModel.fit(self.trainX,
-                               self.trainY,
-                               epochs=200,
-                               shuffle=True,
-                               validation_split=0.2,
-                               callbacks=[checkpoint_cb, early_stopping_tuning_cb, tensorboard_cb])
+        history = bestModel.fit(x=self.train_generator,
+                                epochs=300,
+                                verbose=2,
+                                validation_data=self.validation_generator,
+                                callbacks=[checkpoint_cb, early_stopping_tuning_cb, tensorboard_cb],
+                                shuffle=True,
+                                use_multiprocessing=True,
+                                workers=6)
         return history
 
 """
@@ -103,58 +122,13 @@ Questions / TODO List for Model Definition:
 1. Difference between batch_size specification in .fit vs .compile
 2. Patience, CB hyperparameters
 3. Validation_split vs. validation_sets
-4. Looking at notes for other hyperparameters and settings to be aware of
+4. Look at **Search for optimal hypterparameter** section || Look at TODO sections for train() methods
+5. Specific parameters in init() method
 """
 
 
 
 
-
-
-"""
-Function: Split into train/dev/test and perform pre-procesing of data
-@Param: X np.ndarray of shape (# samples, # channels, H, W), y np.ndarray of shape (# samples, 1)
-@Return: X train, X val, X test, y train, y val, y test
-"""
-def process_data(X, y):
-
-    # Split Raw Data
-    X_train, X_val, X_test, y_train, y_val, y_test = split_raw_data(X, y, train_size = 0.8, val_size = 0.1, test_size = 0.1)
-
-    # Perform Post-Processing (normalization etc.)
-    X_train = X_train / 255.
-    X_val = X_val / 255.
-    X_test = X_test / 255.
-    # TODO: Add more post-processing
-
-    return X_train, X_val, X_test, y_train, y_val, y_test
-
-"""
-Function: This function splits raw data into train/val/test
-@Param: X np.ndarray, y np.ndarray, train size, val size, test size
-@Return: X_train, X_val, X_test, y_train, y_val, y_test
-"""
-def split_raw_data(X, y, train_size = 0.8, val_size = 0.1, test_size = 0.1):
-
-    # Check percentage split
-    if train_size + val_size + test_size != 1:
-        raise Exception("Train/Dev/Test split percentages must add to 1")
-
-    # compute number of samples to split
-    num_samples = X.shape[0]
-    num_train = math.floor(num_samples * train_size)
-    num_val = math.floor(num_samples * val_size)
-    num_test = math.floor(num_samples * test_size)
-
-    # Perform split
-    X_train = X[:num_train]
-    X_val = X[num_train: num_train + num_val]
-    X_test = X[-num_test:]
-    y_train = y[:num_train]
-    y_val = y[num_train: num_train + num_val]
-    y_test = y[-num_test:]
-
-    return X_train, X_val, X_test, y_train, y_val, y_test
 
 
 
@@ -201,17 +175,6 @@ if __name__ == "__main__":
     np.random.seed(42)
     bin_array = truth_data_distribution(filename ="../json_store/Illinois_Soybeans_Truth_Data.csv", num_classes = 10)
 
-    # Load Raw Data
-    X, y = np.load('training_set_with_labels.npy')
-
-    # apply pre-processing and split data-set
-    X_train, X_valid, X_test, y_train, y_valid, y_test = process_data(X, y)
-
-    # Define and Compile model
-    NN_model = NN_model_definition()
-    
-    # Train Model
-    history = train_model(NN_model, X_train, y_train, X_valid, y_valid)
     """
 
     """
@@ -221,6 +184,10 @@ if __name__ == "__main__":
     # Evaluate Model on Test Set
     # NN_model = keras.models.load_model("TBD_name_model.h5") # load in previous model to evaluate
     NN_model.evaluate(X_test, y_test)"""
+
+
+
+
 
 
 
@@ -535,4 +502,50 @@ def train_model(NN_model, X_train, y_train, X_valid, y_valid):
                            validation_data = (X_valid, y_valid),
                            callbacks=[checkpoint_cb, early_stopping_cb, tensorboard_cb])
     return history
+
+"""
+Function: Split into train/dev/test and perform pre-procesing of data
+@Param: X np.ndarray of shape (# samples, # channels, H, W), y np.ndarray of shape (# samples, 1)
+@Return: X train, X val, X test, y train, y val, y test
+"""
+def process_data(X, y):
+
+    # Split Raw Data
+    X_train, X_val, X_test, y_train, y_val, y_test = split_raw_data(X, y, train_size = 0.8, val_size = 0.1, test_size = 0.1)
+
+    # Perform Post-Processing (normalization etc.)
+    X_train = X_train / 255.
+    X_val = X_val / 255.
+    X_test = X_test / 255.
+    # TODO: Add more post-processing
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+"""
+Function: This function splits raw data into train/val/test
+@Param: X np.ndarray, y np.ndarray, train size, val size, test size
+@Return: X_train, X_val, X_test, y_train, y_val, y_test
+"""
+def split_raw_data(X, y, train_size = 0.8, val_size = 0.1, test_size = 0.1):
+
+    # Check percentage split
+    if train_size + val_size + test_size != 1:
+        raise Exception("Train/Dev/Test split percentages must add to 1")
+
+    # compute number of samples to split
+    num_samples = X.shape[0]
+    num_train = math.floor(num_samples * train_size)
+    num_val = math.floor(num_samples * val_size)
+    num_test = math.floor(num_samples * test_size)
+
+    # Perform split
+    X_train = X[:num_train]
+    X_val = X[num_train: num_train + num_val]
+    X_test = X[-num_test:]
+    y_train = y[:num_train]
+    y_val = y[num_train: num_train + num_val]
+    y_test = y[-num_test:]
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
 

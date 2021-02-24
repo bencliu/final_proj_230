@@ -8,6 +8,7 @@ import pickle
 from requests.auth import HTTPBasicAuth
 import tensorflow as tf
 import numpy as np
+import random
 
 # Define global variables
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
@@ -30,6 +31,8 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
     print("STARTING S3 PROCESSING")
     masterTensorArray = np.array([])
     masterLabelArray = np.array([])
+    labelDictionary = {}
+    partition = {}
     idArray = np.array([])
     masterTensorEmptyFlag = True
     for obj in bucket.objects.all():
@@ -51,10 +54,20 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
                 masterTensorArray = image_tensor
                 masterTensorEmptyFlag = False
             masterLabelArray = np.append(masterLabelArray, cropStat)
+            labelDictionary[id] = cropStat
             idArray = np.append(idArray, id)
             print("FINISHED PROCESSING REAL IMAGE")
 
-    return (masterTensorArray, masterLabelArray, idArray)
+    #Partition: Dictionary of val, test, train keys to [Id List] containing relevant ids
+    #Label Dictionary: Key is ID, Value is crop label
+    shuffledIds = random.shuffle(idArray)
+    ten_percent_split = (-1) * int(len(shuffledIds) / 10)
+    twent_percent_split = (-2) * int(len(shuffledIds) / 10)
+    test_ids = shuffledIds[ten_percent_split:]
+    val_ids = shuffledIds[twent_percent_split:ten_percent_split]
+    train_ids = shuffledIds[:twent_percent_split]
+    partition = {'train': train_ids, 'validation': val_ids, 'test_ids': test_ids}
+    return (masterTensorArray, masterLabelArray, idArray, labelDictionary, partition)
 
 #Writes master example dictionary to npy file
 def writeToNpy(path, dictionary):
