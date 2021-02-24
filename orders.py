@@ -13,8 +13,8 @@ import datetime
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
-AWS_SERVER_PUBLIC_KEY = "AKIAIKIF2RFKG3KM3ALQ" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
