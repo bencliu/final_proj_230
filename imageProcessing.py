@@ -64,7 +64,7 @@ Function: Image processing from image to tensor
 @return: image np.ndarray with computed vegetation indices with shape (# channels, H, W)
 TODO: Change max height and max width parameters
 """
-def image_process(session, path, maxH=8000, maxW=8000):
+def image_process(session, path, maxH=6000, maxW=8300):
 
     with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
                       aws_access_key_id=AWS_SERVER_PUBLIC_KEY,

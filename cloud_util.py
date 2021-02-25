@@ -9,6 +9,10 @@ from requests.auth import HTTPBasicAuth
 import tensorflow as tf
 import numpy as np
 import random
+import pickle
+import time
+import io
+from extractCountyData import truth_data_distribution, bin_truth_data
 
 # Define global variables
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
@@ -27,10 +31,8 @@ Integrated Function: Crawl through AWS Bucket images
 2) Apply IP method to MS_image, Label resulting tensor to create a tuple
 3) Store into correct file location
 """
-def s3ProcessLabelImage(bucket, session, cropLabels):
+def s3ProcessLabelImage(s3_client, bucket, session, cropLabels, truth_data_distribution):
     print("STARTING S3 PROCESSING")
-    masterTensorArray = np.array([])
-    masterLabelArray = np.array([])
     labelDictionary = {}
     partition = {}
     idArray = np.array([])
@@ -47,22 +49,33 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
             cropArray.append(cropStat)
 
             #Attain image + package
-            image_tensor = np.array([image_process(session, 's3://cs230data/' + fileName)])
-            print("MASTER_TENSOR SHAPE:", masterTensorArray.shape)
-            assert image_tensor.shape[0] == 1
-            if (not masterTensorEmptyFlag):
-                masterTensorArray= np.append(masterTensorArray, image_tensor, axis=0)
-            else:
-                masterTensorArray = image_tensor
-                masterTensorEmptyFlag = False
-            masterLabelArray = np.append(masterLabelArray, cropStat)
-            labelDictionary[id] = cropStat
+            # image_tensor = np.array([image_process(session, 's3://cs230data/' + fileName)])
+            start = time.time()
+            image_tensor = np.array(image_process(session, 's3://cs230data/' + fileName)) # shape (C, H, W)
+            image_tensor = np.transpose(image_tensor, (1, 2, 0)) # shape (H, W, C)
+            end = time.time()
+            print("image process complete in " + str(end - start))
+
+            # write to local
+            """start = time.time()
+            np.save('test', image_tensor, allow_pickle=True)
+            end = time.time()"""
+
+            # Write image to aws
+            start = time.time()
+            image_tensor_data = io.BytesIO()
+            pickle.dump(image_tensor, image_tensor_data)
+            image_tensor_data.seek(0)
+            s3_client.upload_fileobj(image_tensor_data, 'cs230data', str(id) + '.pkl')
+            end = time.time()
+            print("Complete upload in " + str(end - start))
+
+            # extract labels and id
+            [cropLabel] = bin_truth_data(np.array([cropStat], truth_data_distribution))
+            labelDictionary[id] = cropLabel # convert to label
             idArray = np.append(idArray, id)
             print("FINISHED PROCESSING REAL IMAGE")
-
-    #Call bin generation function
-    for index, crop in enumerate(cropArray):
-        #Create id:crop dictionary
+            break # Todo: remove after testing
 
     #Partition: Dictionary of val, test, train keys to [Id List] containing relevant ids
     #Label Dictionary: Key is ID, Value is crop label
@@ -72,8 +85,15 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
     test_ids = shuffledIds[ten_percent_split:]
     val_ids = shuffledIds[twent_percent_split:ten_percent_split]
     train_ids = shuffledIds[:twent_percent_split]
-    partition = {'train': train_ids, 'validation': val_ids, 'test_ids': test_ids}
-    return (masterTensorArray, masterLabelArray, idArray, labelDictionary, partition)
+    partition = {'train': train_ids, 'val': val_ids, 'test': test_ids}
+
+    # Write data structures to file
+    with open('partition.p', 'wb') as fp:
+        pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('labels.p', 'wb') as fp:
+        pickle.dump(labelDictionary, fp, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return (labelDictionary, partition)
 
 #Writes master example dictionary to npy file
 def writeToNpy(path, dictionary):
@@ -124,13 +144,16 @@ def obtainAndStoreCropLabels():
 
 if __name__ == "__main__":
 
-    # Define session for aws
+    obtainAndStoreCropLabels()
+
+    """# Define session for aws
     session = boto3.Session(
         aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
         aws_secret_access_key=AWS_SERVER_SECRET_KEY,
     )
     s3 = session.resource('s3')
     bucket = s3.Bucket('cs230data')
+    s3_client = session.client('s3')
 
     #obtainAndStoreCropLabels()
     infile = open("json_store/labels_c1", 'rb')
@@ -139,7 +162,9 @@ if __name__ == "__main__":
     
     print("FIRST IDS", list(cropLabels.keys())[:10])
     print("FIRST CROP STATS", list(cropLabels.values())[:10])
-    s3ProcessLabelImage(bucket, session, cropLabels)
+    bins_array = truth_data_distribution(filename="json_store/Illinois_Soybeans_Truth_Data.csv", num_classes=10)
+    s3ProcessLabelImage(s3_client, bucket, session, cropLabels, bins_array)"""
+
 
 
 

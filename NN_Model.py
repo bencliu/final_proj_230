@@ -18,6 +18,7 @@ import kerastuner as kt
 from dataGenerator import DataGenerator
 from cloud_util import s3ProcessLabelImage
 from extractCountyData import truth_data_distribution
+import pickle
 
 class VanillaModel():
     def __init__(self):
@@ -78,7 +79,7 @@ class VanillaModel():
         return self.model
 
 
-    def train(self):
+    def train(self, labels, partition):
         # Instantiate tuner for hypertuning, code reference: Tensorflow documentation
         # Note: Might be erros in the model callable
         tuner = kt.Hyperband(self.define_compile,
@@ -95,7 +96,7 @@ class VanillaModel():
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
 
         # Datasets: TODO, place various arguments in the s3ProcessLabelImage()
-        _, _, _, labels, partition = s3ProcessLabelImage()
+        # labels, partition = s3ProcessLabelImage()
 
         # Generators
         self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)
@@ -167,15 +168,25 @@ def analyze_data(history):
 
 if __name__ == "__main__":
 
-
-    """
     # run logistics
     keras.backend.clear_session()
     tf.random.set_seed(42)
     np.random.seed(42)
-    bin_array = truth_data_distribution(filename ="../json_store/Illinois_Soybeans_Truth_Data.csv", num_classes = 10)
 
-    """
+    # Load in saved data structures
+    with open('partition.p', 'rb') as fp:
+        partition = pickle.load(fp) # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
+    with open('labels.p', 'rb') as fp:
+        labels = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
+
+    # create model
+    NN = VanillaModel()
+
+    # define model
+    NN.define_compile() #hp???
+
+    # train model
+    NN.train(labels = labels, partition = partition)
 
     """
     # Plot Metrics

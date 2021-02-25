@@ -133,7 +133,6 @@ def integrated_order_pipe(county_dictionary):
         #Perform ordering and downloading of images (Code in tester) (Write to AWS)
         order_and_download(id_vec, fipCode, coordinates)
         print("COMPLETED S3 DOWNLOAD FOR {}".format(fipCode))
-        break
 
 def order_and_download(itemidVector, fipCode, coordinates):
     print("Starting order and downloads")
@@ -275,29 +274,42 @@ def yield_for_time_split(dateTime, fipCode, county_truth):
     year = dateTime.year
     yearYield = 0
 
-    yearArray = county_truth[fipCode].keys() #Year list only
+    #yearArray = county_truth[fipCode].keys() #Year list only
+    yearArray = list(county_truth[fipCode].keys())  # Year list only
 
     if year not in yearArray: #Not in year array, take averages of left and right neighbors
         leftYear = int(year) - 1
         rightYear = int(year) + 1
 
         if year > max(yearArray): #Already at the right border
-            rightYear = yearArray[-1]
-            leftYear = yearArray[-2]
+            rightYear = yearArray[0]
+            leftYear = yearArray[1]
         elif year < min(yearArray):
-            leftYear = yearArray[0]
-            rightYear = yearArray[1]
+            leftYear = yearArray[-1]
+            rightYear = yearArray[-2]
         else:
+            year = leftYear, rightYear
             while leftYear not in yearArray:
                 leftYear -= 1
             while rightYear not in yearArray:
                 rightYear += 1
-            yearYield = (county_truth[fipCode][leftYear] + county_truth[fipCode][rightYear]) / 2 #Average of left and right neighbors
+        yearYield = (county_truth[fipCode][leftYear] + county_truth[fipCode][rightYear]) / 2 #Average of left and right neighbors
     else:
         yearYield = county_truth[fipCode][year]
 
     return yearYield / 12
 
+"""
+Debug Function: debugging yield_for_time_split
+"""
+
+def debug_yield_for_time_split():
+    # Test Case
+    fip_code = 3
+    dateTime_sample = datetime.datetime(2013, 10, 15)
+    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+
+    print(yield_for_time_split(dateTime_sample, fip_code, county_truth))
 
 def attain_itemids(combined_filter):
     item_type = "PSScene4Band"
@@ -388,6 +400,7 @@ if __name__ == "__main__":
     outfile = open(path, 'wb')
     pickle.dump(cropLabels, outfile)
     outfile.close()
+
 
 
 
