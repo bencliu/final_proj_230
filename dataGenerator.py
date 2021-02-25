@@ -1,5 +1,6 @@
 import numpy as np
 import keras
+import io
 
 """
 Class: The DataGenerator class allows for data to be generated in parallel by CPU and fed into GPU real time.
@@ -48,7 +49,7 @@ class DataGenerator(keras.utils.Sequence):
             np.random.shuffle(self.indexes)
 
     #Private helper method
-    def __data_generation(self, list_IDs_temp):
+    def __data_generation(self, list_IDs_temp, s3_client):
         #Generates data containing batch_size samples | X : (n_samples, *dim, n_channels)
         # Initialization
         X = np.empty((self.batch_size, *self.dim, self.n_channels)) # (numSamples, H, W, C)
@@ -57,7 +58,11 @@ class DataGenerator(keras.utils.Sequence):
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
             # Store sample
-            X[i,] = np.load('data/' + ID + '.npy') #Load data from npy file (Already instantiated), sample_number dimensions specified | H, W, C follow implicitely
+            # X[i,] = np.load('data/' + ID + '.npy') #Load data from npy file (Already instantiated), sample_number dimensions specified | H, W, C follow implicitely
+            X_data = io.BytesIO()
+            s3_client.download_fileobj('cs230data', str(ID) + '.pkl', X_data)
+            X_data.seek(0)
+            X[i, ] = X_data
 
             # Store class
             y[i] = self.labels[ID] #Store label
