@@ -34,6 +34,7 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
     labelDictionary = {}
     partition = {}
     idArray = np.array([])
+    cropArray = []
     masterTensorEmptyFlag = True
     for obj in bucket.objects.all():
         fileName = obj.key
@@ -43,6 +44,7 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
             idSplit1 = fileName.split("Scene4Band/")[1] #After "Scene4Band"
             id = idSplit1.split("_3B_AnalyticMS_")[0] #Before "AnalyticMS"
             cropStat = cropLabels[id]
+            cropArray.append(cropStat)
 
             #Attain image + package
             image_tensor = np.array([image_process(session, 's3://cs230data/' + fileName)])
@@ -57,6 +59,10 @@ def s3ProcessLabelImage(bucket, session, cropLabels):
             labelDictionary[id] = cropStat
             idArray = np.append(idArray, id)
             print("FINISHED PROCESSING REAL IMAGE")
+
+    #Call bin generation function
+    for index, crop in enumerate(cropArray):
+        #Create id:crop dictionary
 
     #Partition: Dictionary of val, test, train keys to [Id List] containing relevant ids
     #Label Dictionary: Key is ID, Value is crop label
