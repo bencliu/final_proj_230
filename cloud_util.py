@@ -15,8 +15,8 @@ import io
 from extractCountyData import truth_data_distribution, bin_truth_data
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "AKIAIKIF2RFKG3KM3ALQ" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
