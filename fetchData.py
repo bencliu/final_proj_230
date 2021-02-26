@@ -130,7 +130,7 @@ Helper function: Search Image
 - Sends and receives search request result 
 """
 def search_image(api_key, combined_filter):
-    print("Key", api_key)
+    # print("Key", api_key)
     item_type = "PSScene4Band"
 
     #API Req Object

@@ -15,8 +15,8 @@ import io
 from extractCountyData import truth_data_distribution, bin_truth_data
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIAIKIF2RFKG3KM3ALQ" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
@@ -137,10 +137,12 @@ def obtainAndStoreCropLabels():
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     cropLabels = obtain_crop_labels(county_dict, county_truth)
 
+
+    """# temporarily comment out
     path = "json_store/labels_all"
     outfile = open(path, 'wb')
     pickle.dump(cropLabels, outfile)
-    outfile.close()
+    outfile.close()"""
 
 if __name__ == "__main__":
 
