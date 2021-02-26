@@ -137,10 +137,12 @@ def obtainAndStoreCropLabels():
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     cropLabels = obtain_crop_labels(county_dict, county_truth)
 
+
+    """# temporarily comment out
     path = "json_store/labels_all"
     outfile = open(path, 'wb')
     pickle.dump(cropLabels, outfile)
-    outfile.close()
+    outfile.close()"""
 
 if __name__ == "__main__":
 

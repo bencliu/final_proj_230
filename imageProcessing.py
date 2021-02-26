@@ -15,6 +15,7 @@ from rasterio import Affine
 from rasterio import windows
 from rasterio.merge import merge
 from rasterio.plot import show
+from rasterio.enums import Resampling
 import glob
 import os
 import time
@@ -23,6 +24,7 @@ import random
 from PIL import Image
 from scipy import sparse
 import boto3
+from sklearn import preprocessing
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
@@ -31,46 +33,27 @@ AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
 AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 """
-Function: Visualize image
-@param: path to TIFF image file
-@return: np array representation of image
-"""
-def visualize_image(tif_path):
-    image = Image.open(tif_path)
-    image.show()
-    imarray = np.array(image)
-    print(imarray.shape)
-    return imarray
-
-"""
-Function: Simple image processing
-@param: Path of image TIFF file
-@return: b, g, r, n np arrays used to construct tensors of human-engineered features 
-"""
-def simple_image_process(path):
-
-    #Obtain image
-    sat_data = rasterio.open(path)
-
-    # Conversion to numpy arrays
-    b, g, r, n = sat_data.read()
-
-    return np.array([b, g, r, n])
-
-"""
 **Integrated function**
 Function: Image processing from image to tensor
-@param: Path of image TIFF file, max pixel height, max pixel width
+@param:
+    - session (boto3.session)
+    - path (e.g. 's3://cs230data/test_image1.tif')
+    - maxH: image height in pixels (e.g. 850)
+    - maxW: image width in pixels (e.g. 850)
+    - scaling: scales size of image 
 @return: image np.ndarray with computed vegetation indices with shape (# channels, H, W)
 TODO: Change max height and max width parameters
 """
-def image_process(session, path, maxH=6000, maxW=8300):
+def image_process(session, path, maxH, maxW, scaling):
 
     with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
                       aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
                       aws_session=session):
         data = rasterio.open(path)
-        image = data.read()
+        image = data.read(
+            out_shape = (int(data.height * scaling), int(data.width * scaling)),
+            resampling = Resampling.nearest # or bilinear
+        )
 
         # center data
         centered_data = standardize_image_np(image, maxH, maxW) # 2 seconds
@@ -81,17 +64,12 @@ def image_process(session, path, maxH=6000, maxW=8300):
         # Construct image tensor
         image_tensor = construct_tensors(b, g, r, n)
 
-    return image_tensor
+        # normalization and scaling
+        """image_tensor = preprocessing.normalize(image_tensor, norm='l2')
+        scaler = preprocessing.StandardScaler().fit(image_tensor)
+        image_tensor_scaled = scaler.transform(image_tensor)"""
 
-"""
-Function: Merge Strip Vectors (After cloud processing)
-@param: NP array of b, g, r, n (num_strips, 4, W, H) (4D)
-@return: Merged [b, g, r, n] NP Array embedding for strip of timestep t (4, W, H) (3D)
-"""
-def merge_strip_vector(strip_vector):
-    length = strip_vector.shape[0]
-    merged = np.sum(strip_vector, axis=0) #Collapse axis 0
-    return (merged / length) #Average merged arrays
+    return image_tensor
 
 """
 Function: Constructing Tensors:
@@ -156,50 +134,6 @@ def calculate_MSAVI(r, n):
     np_result = (2*n+1-np.power((2*n+1),2)-8*np.power((n-r),0.5))/2
     return np_result
 
-"""
-Function: This function will standardize the input based on the maximum height and width of the largest image.
-@Params: image (tensor (bands, h, w)), max pixel height, max pixel width
-@Return: tensor (bands, h, w)
-"""
-def standardize_image(image, maxH, maxW):
-
-    # Add padding
-    maxH += 1
-    maxW += 1
-
-    # Generate reference image
-    reference = tf.zeros([maxH, maxW], tf.float64)
-
-    # Compute offsets
-    image_height = image.get_shape()[1]
-    image_width = image.get_shape()[2]
-    height_offset = math.floor(abs((image_height - maxH)) / 2)
-    width_offset = math.floor(abs((image_width - maxW)) / 2)
-
-    # Generate indices
-    indices = generate_indices(height_offset, width_offset, image_height, image_width)
-
-    # perform standardization and then stack
-    std_r = tf.tensor_scatter_nd_update(reference, indices, image[0])
-    std_g = tf.tensor_scatter_nd_update(reference, indices, image[1])
-    std_b = tf.tensor_scatter_nd_update(reference, indices, image[2])
-    std_n = tf.tensor_scatter_nd_update(reference, indices, image[3])
-
-    # return stacked image
-    return tf.stack([std_r, std_g, std_b, std_n], axis=0)
-
-def generate_indices(height_offset, width_offset, image_height, image_width):
-    # start = time.time()
-    indices = []
-    for y in range(0, image_height):
-        row = []
-        for x in range(0 , image_width):
-            row.append([y + height_offset, x + width_offset])
-        indices.append(row)
-    # end = time.time()
-    # print(end - start)
-    return indices
-
 
 """
 Function: This function will standardize the input based on the maximum height and width of the largest image.
@@ -252,13 +186,14 @@ def test_cloud_image_process():
     image1 = 's3://cs230data/test_image1.tif'
 
     # Assume inputs
-    maxH = 5000
-    maxW = 5000
+    maxH = 850
+    maxW = 850
+    scaling = 0.1
 
     # run function
     print("Starting image standardization")
     start = time.time()
-    std_test_image1 = image_process(session, image1, maxH, maxW)
+    std_test_image1 = image_process(session, image1, maxH, maxW, scaling)
     end = time.time()
 
     # view sample output
@@ -287,6 +222,89 @@ if __name__ == "__main__":
 """
 Obselete Test Functions
 """
+"""
+Function: Merge Strip Vectors (After cloud processing)
+@param: NP array of b, g, r, n (num_strips, 4, W, H) (4D)
+@return: Merged [b, g, r, n] NP Array embedding for strip of timestep t (4, W, H) (3D)
+"""
+"""
+Function: This function will standardize the input based on the maximum height and width of the largest image.
+@Params: image (tensor (bands, h, w)), max pixel height, max pixel width
+@Return: tensor (bands, h, w)
+"""
+def standardize_image(image, maxH, maxW):
+
+    # Add padding
+    maxH += 1
+    maxW += 1
+
+    # Generate reference image
+    reference = tf.zeros([maxH, maxW], tf.float64)
+
+    # Compute offsets
+    image_height = image.get_shape()[1]
+    image_width = image.get_shape()[2]
+    height_offset = math.floor(abs((image_height - maxH)) / 2)
+    width_offset = math.floor(abs((image_width - maxW)) / 2)
+
+    # Generate indices
+    indices = generate_indices(height_offset, width_offset, image_height, image_width)
+
+    # perform standardization and then stack
+    std_r = tf.tensor_scatter_nd_update(reference, indices, image[0])
+    std_g = tf.tensor_scatter_nd_update(reference, indices, image[1])
+    std_b = tf.tensor_scatter_nd_update(reference, indices, image[2])
+    std_n = tf.tensor_scatter_nd_update(reference, indices, image[3])
+
+    # return stacked image
+    return tf.stack([std_r, std_g, std_b, std_n], axis=0)
+
+def generate_indices(height_offset, width_offset, image_height, image_width):
+    # start = time.time()
+    indices = []
+    for y in range(0, image_height):
+        row = []
+        for x in range(0 , image_width):
+            row.append([y + height_offset, x + width_offset])
+        indices.append(row)
+    # end = time.time()
+    # print(end - start)
+    return indices
+
+
+def merge_strip_vector(strip_vector):
+    length = strip_vector.shape[0]
+    merged = np.sum(strip_vector, axis=0) #Collapse axis 0
+    return (merged / length) #Average merged arrays
+
+
+"""
+Function: Visualize image
+@param: path to TIFF image file
+@return: np array representation of image
+"""
+def visualize_image(tif_path):
+    image = Image.open(tif_path)
+    image.show()
+    imarray = np.array(image)
+    print(imarray.shape)
+    return imarray
+
+"""
+Function: Simple image processing
+@param: Path of image TIFF file
+@return: b, g, r, n np arrays used to construct tensors of human-engineered features 
+"""
+def simple_image_process(path):
+
+    #Obtain image
+    sat_data = rasterio.open(path)
+
+    # Conversion to numpy arrays
+    b, g, r, n = sat_data.read()
+
+    return np.array([b, g, r, n])
+
 
 """
 Test function: Verification of the standardization algorithm for a sample image
@@ -300,8 +318,8 @@ def test_standardization():
     test_image1_raw = simple_image_process(image1)
 
     # Assume inputs
-    maxH = 7000
-    maxW = 7000
+    maxH = 1000
+    maxW = 1000
     test_image1 = tf.convert_to_tensor(test_image1_raw, np.float64)
 
     # run function

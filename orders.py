@@ -10,6 +10,9 @@ import requests
 import pickle
 from requests.auth import HTTPBasicAuth
 import datetime
+import os.path
+import time
+import pprint
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
@@ -124,7 +127,7 @@ Order pipeline:
 def integrated_order_pipe(county_dictionary):
     #Loop through counties
     for fipCode, coordinates in county_dictionary.items():
-        print("PROCESS NEW COUNTY")
+        print("PROCESS NEW COUNTY:" + str(fipCode))
         #Attain Item IDs for County
         geoFilter = define_county_geometry(coordinates)
         searchFilter = combined_filter(geoFilter)
@@ -199,23 +202,68 @@ Integrated Function:
 @ Params: 
     - county_dictionary of dict[County FIP: List[List[Coordinates]]]
     - county_truth of dict[County FIP: dict[year, yield]]
+@ Return: Pickle files in local directory
 """
 def obtain_crop_labels(county_dictionary, county_truth):
     master_yield_id_dictionary = {}
 
+    # read back in saved crop list
+    completed_fips = []
+    if (os.path.isfile('json_store/labels/completed_fips.pkl')):
+        with open('json_store/labels/completed_fips.pkl', 'rb') as fp:
+            completed_fips = pickle.load(fp)
+
     #Loop through counties
     for fipCode, coordinates in county_dictionary.items():
-        print("PROCESS NEW COUNTY")
+
+        # Assuming restart after failed run, check to see if fip has already been processed
+        if (fipCode in completed_fips):
+            continue # skip fip if already processed
+
+        # process county
+        print("PROCESS NEW COUNTY: " + str(fipCode))
+        start = time.time()
         #Attain Item IDs for County
         geoFilter = define_county_geometry(coordinates)
         searchFilter = combined_filter(geoFilter)
         county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
-        print("Pre-Num items in master:", len(master_yield_id_dictionary.keys()))
-        # master_yield_id_dictionary = master_yield_id_dictionary | county_dict #Merge two dictionaries
-        master_yield_id_dictionary = {**master_yield_id_dictionary, **county_dict} # Need to be compatabile with 3.8
-        print("Post-Num items in master:", len(master_yield_id_dictionary.keys()))
-    print("Number of items in master:", len(master_yield_id_dictionary.keys()))
-    return master_yield_id_dictionary
+
+        # write save county dict (key: id, value: yields)
+        ids = list(county_dict.keys())
+        with open('json_store/labels/' + str(fipCode) + '.pkl', 'wb') as fp:
+            pickle.dump(county_dict, fp)
+        # master_yield_id_dictionary = {**master_yield_id_dictionary, **county_dict} # Need to be compatabile with 3.8
+
+        # store completed FIPS
+        completed_fips.append(fipCode)
+        with open('json_store/labels/completed_fips.pkl', 'wb') as fp:
+            pickle.dump(completed_fips, fp)
+
+        # output timed data
+        end = time.time()
+        print("County " + str(fipCode) + " complete in " + str(end-start))
+        print(datetime.datetime.now().time())
+
+
+"""
+Test function: verify the contents of the pickle file
+"""
+def verify_pickle_contents():
+
+    print("Starting verification test of pickle contents")
+
+    # read and print out fips stored list
+    completed_fips = []
+    with open('json_store/labels/completed_fips.pkl', 'rb') as fp:
+        completed_fips = pickle.load(fp)
+    print(completed_fips)
+
+    # read and output fips for labels
+    sample_label_dict = {}
+    sample_id = '3'
+    with open('json_store/labels/' + sample_id + '.pkl', 'rb') as fp:
+        sample_label_dict = pickle.load(fp)
+    pprint.pprint(sample_label_dict)
 
 """
 Helper function: Returns dictionary of image_ids corresponding to crop yield labels 
@@ -242,14 +290,14 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
 
         #Yield for each strip
         yieldPerStrip = cropYieldInTimeSplit / numStrips
-        print("YIELD PER STRIP:", yieldPerStrip)
+        # print("YIELD PER STRIP:", yieldPerStrip)
 
         #Loop through each strip
         for stripid, itemVec in strip_dict.items():
             #Obtain yield per each image **Naively depends on num images**
             numImages = len(itemVec)
             yieldPerImage = yieldPerStrip / numImages
-            print("YIELD PER image:", yieldPerImage)
+            # print("YIELD PER image:", yieldPerImage)
             #Assign crop yields to each image: Update dictionary with itemID, yield
             for image in itemVec:
                 #TODONOW, Currently Debugging
@@ -257,7 +305,7 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
                 # print("PROP:", prop)
                 # print("ACQUIRED:", image.json()['properties']['acquired'])
                 itemid = image.json()['id'] #Can add other metadata from the itemResult
-                print(itemid)
+                # print(itemid)
                 image_to_yield_dict[itemid] = yieldPerImage
 
     return image_to_yield_dict
@@ -299,25 +347,12 @@ def yield_for_time_split(dateTime, fipCode, county_truth):
 
     return yearYield / 12
 
-"""
-Debug Function: debugging yield_for_time_split
-"""
-
-def debug_yield_for_time_split():
-    # Test Case
-    fip_code = 3
-    dateTime_sample = datetime.datetime(2013, 10, 15)
-    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
-
-    print(yield_for_time_split(dateTime_sample, fip_code, county_truth))
-
 def attain_itemids(combined_filter):
     item_type = "PSScene4Band"
     imageQueue = search_image(PLANET_API_KEY, combined_filter) #TODO, add combined filter
     image_ids = [feature['id'] for feature in imageQueue.json()['features']]
     print("NUMBER OF IMAGES:", len(image_ids))
     return image_ids
-
 
 """
 CNN Baseline Test: 2019 Images August - November || 50% Cloud Cover
@@ -357,27 +392,6 @@ def combined_filter(geojson):
 
     return combined_filter
 
-def test_process_crop_statistics(image_to_yield_dict):
-
-    # Test Case
-    fip_code = 1
-    dateTime_sample = datetime.datetime(2019, 10, 15)
-
-    # Create truth dictionaray and confirm yield
-    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
-    yearYield = yield_for_time_split(dateTime_sample, fip_code, county_truth)
-    assert (yearYield * 12 == 49.8)
-
-    # Verify yield per strip calculations
-    assert(round(image_to_yield_dict["20191012_150709_1049"] * 3 * 9, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191012_150714_1049"] * 3 * 9, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191012_162948_1035"] * 3 * 4, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191012_162955_1035"] * 3 * 4, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191013_164837_82_1057"] * 2 * 5, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191013_164845_96_1057"] * 2 * 5, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191014_150319_1054"] * 4 * 3, 2) == round(yearYield, 2))
-    assert(round(image_to_yield_dict["20191014_150321_1054"] * 4 * 3, 2) == round(yearYield, 2))
-
 if __name__ == "__main__":
 
     """
@@ -388,18 +402,20 @@ if __name__ == "__main__":
     #test_process_crop_statistics(dict)
     """
 
+
     print("Starting to collect labels")
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
-    cropLabels = obtain_crop_labels(county_dict, county_truth)
+    obtain_crop_labels(county_dict, county_truth)
     print("Finished collecting labels")
-    print("Keys:", len(dict.keys()))
-    print("Vals:", len(dict.values()))
 
-    path = "json_store/labels_all"
+    # Test function
+    # verify_pickle_contents()
+
+    """path = "json_store/labels_all"
     outfile = open(path, 'wb')
     pickle.dump(cropLabels, outfile)
-    outfile.close()
+    outfile.close()"""
 
 
 
@@ -533,3 +549,34 @@ def test_yield_for_time_split():
     assert(yearYield*12 == 49.8)
 
     print("Simple test for yield_for_time_split complete")
+
+"""
+Debug Function: debugging yield_for_time_split
+"""
+def debug_yield_for_time_split():
+    # Test Case
+    fip_code = 3
+    dateTime_sample = datetime.datetime(2013, 10, 15)
+    county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+
+    print(yield_for_time_split(dateTime_sample, fip_code, county_truth))
+
+    def test_process_crop_statistics(image_to_yield_dict):
+        # Test Case
+        fip_code = 1
+        dateTime_sample = datetime.datetime(2019, 10, 15)
+
+        # Create truth dictionaray and confirm yield
+        county_truth = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
+        yearYield = yield_for_time_split(dateTime_sample, fip_code, county_truth)
+        assert (yearYield * 12 == 49.8)
+
+        # Verify yield per strip calculations
+        assert (round(image_to_yield_dict["20191012_150709_1049"] * 3 * 9, 2) == round(yearYield, 2))
+        assert (round(image_to_yield_dict["20191012_150714_1049"] * 3 * 9, 2) == round(yearYield, 2))
+        assert (round(image_to_yield_dict["20191012_162948_1035"] * 3 * 4, 2) == round(yearYield, 2))
+        assert (round(image_to_yield_dict["20191012_162955_1035"] * 3 * 4, 2) == round(yearYield, 2))
+        assert (round(image_to_yield_dict["20191013_164837_82_1057"] * 2 * 5, 2) == round(yearYield, 2))
+        assert (round(image_to_yield_dict["20191013_164845_96_1057"] * 2 * 5, 2) == round(yearYield, 2))
+        assert (round(image_to_yield_dict["20191014_150319_1054"] * 4 * 3, 2) == round(yearYield, 2))
+        assert (round(image_to_yield_dict["20191014_150321_1054"] * 4 * 3, 2) == round(yearYield, 2))
