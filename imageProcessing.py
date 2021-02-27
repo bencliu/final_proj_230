@@ -151,6 +151,10 @@ def standardize_image_np(image, maxH, maxW):
     # Compute offsets
     image_height = image.shape[1]
     image_width = image.shape[2]
+    if image_height >= maxH:
+        raise Exception("maxH exceeded")
+    if image_width >= maxW:
+        raise Exception("maxW exceeded")
     height_offset = math.floor(abs((image_height - maxH)) / 2)
     width_offset = math.floor(abs((image_width - maxW)) / 2)
 
@@ -165,8 +169,37 @@ def standardize_image_np(image, maxH, maxW):
         # print(image_slice.shape)
         reference[band] = image_slice
 
+    # check shape
+    assert(reference.shape == (4, maxH, maxW))
+
     # return stacked image
     return reference
+
+"""
+Test Function: Test robustness for standardize_image_np
+"""
+def test_standardize_image_np():
+
+    # reference sizes
+    maxH = 400
+    maxW = 400
+
+    # reference images
+    image1 = np.random.randint(low=0, high=5, size=(4, 300, 300)) # even, even
+    image2 = np.random.randint(low=0, high=5, size=(4, 300, 301)) # even, odd
+    image3 = np.random.randint(low=0, high=5, size=(4, 301, 300)) # odd, even
+    image4 = np.random.randint(low=0, high=5, size=(4, 301, 301)) # odd, odd
+    image5 = np.random.randint(low=0, high=5, size=(4, 301, 451)) # larger size test failure
+
+    # perform standardization
+    image1 = standardize_image_np(image1, maxH, maxW)
+    image2 = standardize_image_np(image2, maxH, maxW)
+    image3 = standardize_image_np(image3, maxH, maxW)
+    image4 = standardize_image_np(image4, maxH, maxW)
+    image5 = standardize_image_np(image5, maxH, maxW)
+
+    print("TEST COMPLETE")
+
 
 
 """
@@ -215,8 +248,8 @@ if __name__ == "__main__":
     # test_standardization()
     # test_standardization_np()
     # test_image_process()
-    test_cloud_image_process()
-
+    # test_cloud_image_process()
+    test_standardize_image_np()
 
 
 """
