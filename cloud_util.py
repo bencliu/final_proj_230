@@ -90,6 +90,35 @@ def s3ProcessLabelImage(s3_client, bucket, session, cropLabels, truth_data_distr
 
     return (labelDictionary, partition)
 
+#Create partition
+def createPartition(s3_client, bucket, session):
+    partition = {}
+    idArray = np.array([])
+    for obj in bucket.objects.all():
+        fileName = obj.key
+        if fileName.endswith('AnalyticMS_clip.tif'):
+            print("PROCESSING REAL IMAGE")
+            #Obtain crop label for image
+            idSplit1 = fileName.split("Scene4Band/")[1] #After "Scene4Band"
+            id = idSplit1.split("_3B_AnalyticMS_")[0] #Before "AnalyticMS"
+            idArray = np.append(idArray, id)
+    # Partition: Dictionary of val, test, train keys to [Id List] containing relevant ids
+    # Label Dictionary: Key is ID, Value is crop label
+    print(idArray)
+    np.random.shuffle(idArray)
+    ten_percent_split = (-1) * int(len(idArray) / 10)
+    twent_percent_split = (-2) * int(len(idArray) / 10)
+    test_ids = idArray[ten_percent_split:]
+    val_ids = idArray[twent_percent_split:ten_percent_split]
+    train_ids = idArray[:twent_percent_split]
+    print("Test", len(test_ids))
+    print("Train", len(train_ids))
+    print("Val", len(val_ids))
+    partition = {'train': train_ids, 'val': val_ids, 'test': test_ids}
+    with open('partition.p', 'wb') as fp:
+        pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    return partition
+
 #Writes master example dictionary to npy file
 def writeToNpy(path, dictionary):
     np.save(path, dictionary)
@@ -141,9 +170,6 @@ def obtainAndStoreCropLabels():
 
 if __name__ == "__main__":
 
-    obtainAndStoreCropLabels()
-
-    """# Define session for aws
     session = boto3.Session(
         aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
         aws_secret_access_key=AWS_SERVER_SECRET_KEY,
@@ -152,6 +178,9 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230data')
     s3_client = session.client('s3')
 
+    createPartition(s3_client, bucket, session)
+
+    """
     #obtainAndStoreCropLabels()
     infile = open("json_store/labels_c1", 'rb')
     cropLabels = pickle.load(infile)
