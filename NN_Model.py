@@ -6,6 +6,7 @@ from tensorflow.keras import layers
 from tensorflow.keras import optimizers
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
     MaxPooling2D, BatchNormalization
+from tensorflow.keras.applications.resnet50 import ResNet50
 from keras.layers import LSTM
 from keras import callbacks
 import tensorflow.keras.backend as K
@@ -46,14 +47,14 @@ class VanillaModel():
             keras.layers.MaxPooling2D(2),
             keras.layers.Flatten(),
             keras.layers.Dense(256, activation="relu"),
-            keras.layers.BatchNormalization(),
             keras.layers.Dropout(0.5),
+            keras.layers.BatchNormalization(),
             keras.layers.Dense(128, activation="relu"),
-            keras.layers.BatchNormalization(),
             keras.layers.Dropout(0.5),
+            keras.layers.BatchNormalization(),
             keras.layers.Dense(64, activation="relu"),
-            keras.layers.BatchNormalization(),
             keras.layers.Dropout(0.5),
+            keras.layers.BatchNormalization(),
             keras.layers.Dense(10, activation="softmax"),
         ])
         self.model = modelTemp
@@ -78,11 +79,55 @@ class VanillaModel():
 
         return self.model
 
+    def define_res_compile(self, hp):
+        resModel = ResNet50(
+            include_top = False,
+            weights="imagenet",
+            input_tensor=None,
+            input_shape=(850, 850, 7),
+            pooling='max',
+            classes=10,
+        )
+        #Flattened layer
+        flat_layer = tf.keras.layers.Flatten()(resModel)
+        fc1 = keras.layers.Dense(256, activation="relu")(flat_layer)
+        d1 = keras.layers.Dropout(0.5)(fc1)
+        b1 = keras.layers.BatchNormalization()(d1)
+        fc2 = keras.layers.Dense(128, activation="relu")(b1)
+        d2 = keras.layers.Dropout(0.5)(fc2)
+        b2 = keras.layers.BatchNormalization()(d2)
+        fc3 = keras.layers.Dense(64, activation="relu")(b2)
+        d3 = keras.layers.Dropout(0.5)(fc3)
+        b3 = keras.layers.BatchNormalization()(d3)
+        final = keras.layers.Dense(10, activation="softmax")(b3)
+        self.model = tf.keras.models.Model(inputs=resModel.input, outputs=fc2)
 
-    def train(self, labels, partition):
+        # Hyperparameters
+        hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+        hp_batch_size = hp.Choice('batch_size', values=[32, 64])
+        selected_optimizer = optimizers.Adam(lr=hp_learning_rate,
+                                             beta_1=0.9,
+                                             beta_2=0.999)
+        self.model.compile(loss="sparse_categorical_crossentropy",
+                           optimizer=selected_optimizer,
+                           metrics=["accuracy"],
+                           batch_size=hp_batch_size)  # Batch_size can be changed to hp_batch_size
+
+        # Parameters
+        self.genParams = {'dim': (7000, 7000),
+                          'batch_size': hp_batch_size,
+                          'n_classes': 10,
+                          'n_channels': 7,
+                          'shuffle': True}
+        print(self.model.summary())
+
+        return self.model
+
+
+    def train(self, labels, partition, hp):
         # Instantiate tuner for hypertuning, code reference: Tensorflow documentation
         # Note: Might be erros in the model callable
-        tuner = kt.Hyperband(self.define_compile,
+        tuner = kt.Hyperband(self.define_res_compile(hp),
                              objective='val_accuracy',
                              max_epochs=10,
                              factor=3,
@@ -183,10 +228,11 @@ if __name__ == "__main__":
     NN = VanillaModel()
 
     # define model
-    NN.define_compile() #hp???
+    hp = kt.HyperParameters()
+    NN.define_compile(hp) 
 
     # train model
-    NN.train(labels = labels, partition = partition)
+    NN.train(labels=labels, partition=partition, hp=hp)
 
     """
     # Plot Metrics

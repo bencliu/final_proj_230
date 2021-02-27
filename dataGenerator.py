@@ -1,6 +1,14 @@
 import numpy as np
 import keras
 import io
+import boto3
+
+# Import functions
+from imageProcessing import image_process
+
+# Define global variables
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 """
 Class: The DataGenerator class allows for data to be generated in parallel by CPU and fed into GPU real time.
@@ -13,7 +21,7 @@ TODO Notes:
 """
 
 class DataGenerator(keras.utils.Sequence):
-    def __init__(self, list_IDs, labels, batch_size=32, dim=(8000,8000), n_channels=7,
+    def __init__(self, list_IDs, labels, batch_size=32, dim=(850,850), n_channels=7,
                  n_classes=10, shuffle=True):
         #Initialization
         self.dim = dim
@@ -58,11 +66,20 @@ class DataGenerator(keras.utils.Sequence):
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
             # Store sample
-            # X[i,] = np.load('data/' + ID + '.npy') #Load data from npy file (Already instantiated), sample_number dimensions specified | H, W, C follow implicitely
-            X_data = io.BytesIO()
-            s3_client.download_fileobj('cs230data', str(ID) + '.pkl', X_data)
-            X_data.seek(0)
-            X[i, ] = X_data
+            session = boto3.Session(
+                aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+                aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+            )
+            s3 = session.resource('s3')
+            bucket = s3.Bucket('cs230data')
+            for obj in bucket.objects.all():
+                fileName = obj.key
+                if fileName.endswith('AnalyticMS_clip.tif'):
+                    idSplit1 = fileName.split("Scene4Band/")[1]  # After "Scene4Band"
+                    id = idSplit1.split("_3B_AnalyticMS_")[0]  # Before "AnalyticMS"
+                    if id == ID:
+                        X_data = image_process(session, 's3://cs230data/' + fileName) #Process image
+                        X[i,] = X_data
 
             # Store class
             y[i] = self.labels[ID] #Store label

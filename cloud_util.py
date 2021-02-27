@@ -56,11 +56,6 @@ def s3ProcessLabelImage(s3_client, bucket, session, cropLabels, truth_data_distr
             end = time.time()
             print("image process complete in " + str(end - start))
 
-            # write to local
-            """start = time.time()
-            np.save('test', image_tensor, allow_pickle=True)
-            end = time.time()"""
-
             # Write image to aws
             start = time.time()
             image_tensor_data = io.BytesIO()
