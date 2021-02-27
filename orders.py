@@ -244,26 +244,32 @@ def obtain_crop_labels(county_dictionary, county_truth):
         print("County " + str(fipCode) + " complete in " + str(end-start))
         print(datetime.datetime.now().time())
 
-
 """
-Test function: verify the contents of the pickle file
+Function: This method reads the generated pickle files into the label dictionary
+Note: Only run this funcntion once all the local pickle files have been generated
+@Params: None
+@Return: Label Dictionary of dict{key: id, value: yield per image}
 """
-def verify_pickle_contents():
+def read_pickle_crop_labels():
 
-    print("Starting verification test of pickle contents")
-
-    # read and print out fips stored list
+    # read in list of FIPS
     completed_fips = []
     with open('json_store/labels/completed_fips.pkl', 'rb') as fp:
         completed_fips = pickle.load(fp)
-    print(completed_fips)
 
-    # read and output fips for labels
-    sample_label_dict = {}
-    sample_id = '3'
-    with open('json_store/labels/' + sample_id + '.pkl', 'rb') as fp:
-        sample_label_dict = pickle.load(fp)
-    pprint.pprint(sample_label_dict)
+    # test for overlapping counties
+    # completed_fips = [77, 87]
+    # completed_fips = [77, 181]
+
+    # read in all county label dictionary files
+    master_label_dict = {}
+    for fipCode in completed_fips:
+        county_label_dict = {}
+        with open('json_store/labels/' + str(fipCode) + '.pkl', 'rb') as fp:
+            county_label_dict = pickle.load(fp)
+            master_label_dict = {**master_label_dict, **county_label_dict}
+
+    return master_label_dict
 
 """
 Helper function: Returns dictionary of image_ids corresponding to crop yield labels 
@@ -402,15 +408,14 @@ if __name__ == "__main__":
     #test_process_crop_statistics(dict)
     """
 
+    label_dict = read_pickle_crop_labels()
+    print(len(label_dict))
 
-    print("Starting to collect labels")
+    """print("Starting to collect labels")
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     obtain_crop_labels(county_dict, county_truth)
-    print("Finished collecting labels")
-
-    # Test function
-    # verify_pickle_contents()
+    print("Finished collecting labels")"""
 
     """path = "json_store/labels_all"
     outfile = open(path, 'wb')
@@ -580,3 +585,23 @@ def debug_yield_for_time_split():
         assert (round(image_to_yield_dict["20191013_164845_96_1057"] * 2 * 5, 2) == round(yearYield, 2))
         assert (round(image_to_yield_dict["20191014_150319_1054"] * 4 * 3, 2) == round(yearYield, 2))
         assert (round(image_to_yield_dict["20191014_150321_1054"] * 4 * 3, 2) == round(yearYield, 2))
+
+"""
+Test function: verify the contents of the pickle file
+"""
+def verify_pickle_contents():
+
+    print("Starting verification test of pickle contents")
+
+    # read and print out fips stored list
+    completed_fips = []
+    with open('json_store/labels/completed_fips.pkl', 'rb') as fp:
+        completed_fips = pickle.load(fp)
+    print(completed_fips)
+
+    # read and output fips for labels
+    sample_label_dict = {}
+    sample_id = '3'
+    with open('json_store/labels/' + sample_id + '.pkl', 'rb') as fp:
+        sample_label_dict = pickle.load(fp)
+    pprint.pprint(sample_label_dict)
