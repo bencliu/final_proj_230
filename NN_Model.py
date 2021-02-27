@@ -24,8 +24,8 @@ import pickle
 
 class VanillaModel():
     def __init__(self):
-        self.width = 8000
-        self.height = 8000
+        self.width = 850
+        self.height = 850
         self.numChannels = 7
         self.inputShape = (self.width, self.height, self.numChannels)
         self.model = None
@@ -37,7 +37,7 @@ class VanillaModel():
     def define_compile(self, hp):
         #Sequential neural net model definition, Note: FilterSize, KernelSize
         modelTemp = keras.models.Sequential([
-            keras.layers.Conv2D(128, 3, activation="relu", padding="same", input_shape=[7000, 7000, 7]),
+            keras.layers.Conv2D(128, 3, activation="relu", padding="same", input_shape=[850, 850, 7]),
             keras.layers.Conv2D(128, 3, activation="relu", padding="same"),
             keras.layers.MaxPooling2D(2),
             keras.layers.Conv2D(266, 3, activation="relu", padding="same"),
@@ -219,10 +219,7 @@ if __name__ == "__main__":
     # Load in saved data structures
     with open('partition.p', 'rb') as fp:
         partition = pickle.load(fp) # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
-<<<<<<< HEAD
     with open('json_store/labels/master_label_dict_binned.pkl', 'rb') as fp:
-=======
->>>>>>> Minimal
         labels = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
 
     # create model
