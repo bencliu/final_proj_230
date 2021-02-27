@@ -24,10 +24,10 @@ import pickle
 
 class VanillaModel():
     def __init__(self):
-        self.width = 850
-        self.height = 850
+        self.width = 951
+        self.height = 951
         self.numChannels = 7
-        self.inputShape = (self.width, self.height, self.numChannels)
+        self.inputShape = [self.width, self.height, self.numChannels]
         self.model = None
         self.history = None
         self.genParams = None
@@ -37,26 +37,26 @@ class VanillaModel():
     def define_compile(self, hp):
         #Sequential neural net model definition, Note: FilterSize, KernelSize
         modelTemp = keras.models.Sequential([
-            keras.layers.Conv2D(128, 3, activation="relu", padding="same", input_shape=[850, 850, 7]),
-            keras.layers.Conv2D(128, 3, activation="relu", padding="same"),
-            keras.layers.MaxPooling2D(2),
-            keras.layers.Conv2D(266, 3, activation="relu", padding="same"),
-            keras.layers.Conv2D(256, 3, activation="relu", padding="same"),
-            keras.layers.MaxPooling2D(2),
-            keras.layers.Conv2D(512, 3, activation="relu", padding="same"),
-            keras.layers.Conv2D(512, 3, activation="relu", padding="same"),
-            keras.layers.MaxPooling2D(2),
-            keras.layers.Flatten(),
-            keras.layers.Dense(256, activation="relu"),
-            keras.layers.Dropout(0.5),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dense(128, activation="relu"),
-            keras.layers.Dropout(0.5),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dense(64, activation="relu"),
-            keras.layers.Dropout(0.5),
-            keras.layers.BatchNormalization(),
-            keras.layers.Dense(10, activation="softmax"),
+            Conv2D(128, 3, activation="relu", padding="same", input_shape=self.inputShape),
+            Conv2D(128, 3, activation="relu", padding="same"),
+            MaxPooling2D(2),
+            Conv2D(266, 3, activation="relu", padding="same"),
+            Conv2D(256, 3, activation="relu", padding="same"),
+            MaxPooling2D(2),
+            Conv2D(512, 3, activation="relu", padding="same"),
+            Conv2D(512, 3, activation="relu", padding="same"),
+            MaxPooling2D(2),
+            Flatten(),
+            Dense(256, activation="relu"),
+            Dropout(0.5),
+            BatchNormalization(),
+            Dense(128, activation="relu"),
+            Dropout(0.5),
+            BatchNormalization(),
+            Dense(64, activation="relu"),
+            Dropout(0.5),
+            BatchNormalization(),
+            Dense(10, activation="softmax"),
         ])
         self.model = modelTemp
 
@@ -68,12 +68,53 @@ class VanillaModel():
                                              beta_2=0.999)
         self.model.compile(loss="sparse_categorical_crossentropy",
                       optimizer=selected_optimizer,
-                      metrics=["accuracy"],
-                      batch_size=hp_batch_size) #Batch_size can be changed to hp_batch_size
+                      metrics=["accuracy"]) #Batch_size can be changed to hp_batch_size
 
         # Parameters
-        self.genParams = {'dim': (7000, 7000),
-                  'batch_size': hp_batch_size,
+        self.genParams = {'dim': (self.width, self.height),
+                  'batch_size': 32,
+                  'n_classes': 10,
+                  'n_channels': 7,
+                  'shuffle': True}
+
+        return self.model
+
+    def compile_without_hp(self):
+        #Sequential neural net model definition, Note: FilterSize, KernelSize
+        modelTemp = keras.models.Sequential([
+            Conv2D(128, 3, activation="relu", padding="same", input_shape=[self.width, self.height, 7]),
+            Conv2D(128, 3, activation="relu", padding="same"),
+            MaxPooling2D(2),
+            Conv2D(266, 3, activation="relu", padding="same"),
+            Conv2D(256, 3, activation="relu", padding="same"),
+            MaxPooling2D(2),
+            Conv2D(512, 3, activation="relu", padding="same"),
+            Conv2D(512, 3, activation="relu", padding="same"),
+            MaxPooling2D(2),
+            Flatten(),
+            Dense(256, activation="relu"),
+            Dropout(0.5),
+            BatchNormalization(),
+            Dense(128, activation="relu"),
+            Dropout(0.5),
+            BatchNormalization(),
+            Dense(64, activation="relu"),
+            Dropout(0.5),
+            BatchNormalization(),
+            Dense(10, activation="softmax"),
+        ])
+        self.model = modelTemp
+
+        selected_optimizer = optimizers.Adam(lr=1e-3,
+                                             beta_1=0.9,
+                                             beta_2=0.999)
+        self.model.compile(loss="sparse_categorical_crossentropy",
+                      optimizer=selected_optimizer,
+                      metrics=["accuracy"]) #Batch_size can be changed to hp_batch_size
+
+        # Parameters
+        self.genParams = {'dim': (self.width, self.height),
+                  'batch_size': 32,
                   'n_classes': 10,
                   'n_channels': 7,
                   'shuffle': True}
@@ -85,7 +126,7 @@ class VanillaModel():
             include_top = False,
             weights="imagenet",
             input_tensor=None,
-            input_shape=(850, 850, 7),
+            input_shape=(self.width, self.height, 7),
             pooling='max',
             classes=10,
         )
@@ -111,12 +152,11 @@ class VanillaModel():
                                              beta_2=0.999)
         self.model.compile(loss="sparse_categorical_crossentropy",
                            optimizer=selected_optimizer,
-                           metrics=["accuracy"],
-                           batch_size=hp_batch_size)  # Batch_size can be changed to hp_batch_size
+                           metrics=["accuracy"])  # Batch_size can be changed to hp_batch_size
 
         # Parameters
-        self.genParams = {'dim': (850, 850),
-                          'batch_size': hp_batch_size,
+        self.genParams = {'dim': (self.width, self.height),
+                          'batch_size': 32,
                           'n_classes': 10,
                           'n_channels': 7,
                           'shuffle': True}
@@ -125,15 +165,9 @@ class VanillaModel():
         return self.model
 
 
-    def train(self, labels, partition, hp):
+    def train(self, labels, partition, hp=False):
         # Instantiate tuner for hypertuning, code reference: Tensorflow documentation
         # Note: Might be erros in the model callable
-        tuner = kt.Hyperband(self.define_res_compile(hp),
-                             objective='val_accuracy',
-                             max_epochs=10,
-                             factor=3,
-                             directory='json-store',
-                             project_name='vanilla_cnn')
 
         # Define model callbacks
         checkpoint_cb = callbacks.ModelCheckpoint("vanilla_model.h5")
@@ -143,14 +177,28 @@ class VanillaModel():
 
         # Generators
         self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)
-        self.validation_generator = DataGenerator(partition['validation'], labels, **self.genParams)
+        self.validation_generator = DataGenerator(partition['val'], labels, **self.genParams)
 
-        # Search for Optimal Hyperparameters: TODO, Fix this tuning procedure
-        tuner.search(self.train_generator, validation_data=self.validation_generator, epochs=50, callbacks=[early_stopping_tuning_cb])
-        best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+        # Initialized
+        bestModel = self.model
 
-        # Train model with Optimal hyperparameters
-        bestModel = tuner.hypermodel.build(best_hps)
+        if hp:
+            hp = kt.HyperParameters()
+            tuner = kt.Hyperband(self.define_compile(hp),
+                                 objective='val_accuracy',
+                                 max_epochs=10,
+                                 factor=3,
+                                 directory='json-store',
+                                 project_name='vanilla_cnn')
+
+            # Search for Optimal Hyperparameters: TODO, Fix this tuning procedure
+            tuner.search(self.train_generator, validation_data=self.validation_generator, epochs=50,
+                         callbacks=[early_stopping_tuning_cb])
+            best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+
+            # Train model with Optimal hyperparameters
+            bestModel = tuner.hypermodel.build(best_hps)
+
         history = bestModel.fit(x=self.train_generator,
                                 epochs=300,
                                 verbose=2,
@@ -224,13 +272,10 @@ if __name__ == "__main__":
 
     # create model
     NN = VanillaModel()
-
-    # define model
-    hp = kt.HyperParameters()
-    NN.define_compile(hp) 
+    NN.compile_without_hp()
 
     # train model
-    NN.train(labels=labels, partition=partition, hp=hp)
+    NN.train(labels=labels, partition=partition)
 
     """
     # Plot Metrics
