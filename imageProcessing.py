@@ -29,8 +29,8 @@ from sklearn import preprocessing
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
-AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN7QD4PKTCN" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 """
 **Integrated function**
