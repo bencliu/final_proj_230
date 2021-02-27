@@ -2,7 +2,7 @@ import numpy as np
 from tensorflow import keras
 import io
 import boto3
-import pickle
+import pickle5 as pickle
 
 # Import functions
 from imageProcessing import image_process
@@ -10,6 +10,8 @@ from imageProcessing import image_process
 # Define global variables
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
 AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+maxW = 400
+maxH = 400
 
 """
 Class: The DataGenerator class allows for data to be generated in parallel by CPU and fed into GPU real time.
@@ -22,7 +24,7 @@ TODO Notes:
 """
 
 class DataGenerator(keras.utils.Sequence):
-    def __init__(self, list_IDs, labels, batch_size=32, dim=(951,951), n_channels=7,
+    def __init__(self, list_IDs, labels, batch_size=10, dim=(maxW, maxH), n_channels=7,
                  n_classes=10, shuffle=True):
         #Initialization
         self.dim = dim
@@ -75,15 +77,13 @@ class DataGenerator(keras.utils.Sequence):
             aws_secret_access_key=AWS_SERVER_SECRET_KEY,
         )
         for i, ID in enumerate(list_IDs_temp):
-            print("GENERATING NEW IMAGE <GATA_GENERATION> Iteration", i)
+            #print("GENERATING NEW IMAGE <GATA_GENERATION> Iteration", i)
             # Store sample
 
             # process image
-            maxH = 950
-            maxW = 950
             X_data = image_process(session, 's3://cs230data/' + aws_file_dict[ID], maxW=maxW, maxH=maxH)  # shape (C, H, W)
             X_data = np.transpose(X_data, (1, 2, 0))  # shape (H, W, C)
-            assert X_data.shape == (maxW+1, maxH+1, 7)
+            #assert X_data.shape == (maxW+1, maxH+1, 7)
             X[i,] = X_data
 
             # Store class

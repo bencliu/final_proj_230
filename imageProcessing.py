@@ -44,7 +44,7 @@ Function: Image processing from image to tensor
 @return: image np.ndarray with computed vegetation indices with shape (# channels, H, W)
 TODO: Change max height and max width parameters
 """
-def image_process(session, path, maxH=950, maxW=950, scaling=0.08):
+def image_process(session, path, maxH=400, maxW=400, scaling=0.04):
 
     with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
                       aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
@@ -145,8 +145,8 @@ Note: This is approximately 25x faster than the tensorflow version
 def standardize_image_np(image, maxH, maxW):
 
     # Add padding
-    maxH += 1
-    maxW += 1
+    #maxH += 1
+    #maxW += 1
 
     # Compute offsets
     image_height = image.shape[1]
