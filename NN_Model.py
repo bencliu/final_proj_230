@@ -19,6 +19,7 @@ import kerastuner as kt
 from dataGenerator import DataGenerator
 from cloud_util import s3ProcessLabelImage
 from extractCountyData import truth_data_distribution
+from orders import read_pickle_crop_labels
 import pickle
 
 class VanillaModel():
@@ -221,8 +222,7 @@ if __name__ == "__main__":
     # Load in saved data structures
     with open('partition.p', 'rb') as fp:
         partition = pickle.load(fp) # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
-    with open('labels.p', 'rb') as fp:
-        labels = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
+    labels = read_pickle_crop_labels() # dictionary of {'id-1': label 1, ... , 'id-n', label n}
 
     # create model
     NN = VanillaModel()
