@@ -15,6 +15,7 @@ import fetchData
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import pickle
 
 """
 Function: Extracts the county FIPS code and polygon coordinates into a dictionary
@@ -127,6 +128,34 @@ def truth_data_distribution(filename: str, num_classes = 10):
     bins = split_df[1]
     return bins
 
+"""
+Function: Converts master label dict with dict(key: id, value: yield/county) to dict(key: id, value: label)
+"""
+def convert_master_label_dict(num_classes = 10):
+
+    # extract pickle file
+    label_dict = {}
+    with open('json_store/labels/master_label_dict.pkl', 'rb') as fp:
+        label_dict = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
+    values = list(label_dict.values())
+
+    # Perform the quantile cut
+    np.random.seed(42)
+    test_list_rnd = np.array(values) + np.random.random(len(values))  # add noise to data
+    test_series = pd.Series(test_list_rnd, name='value_rank')
+    split_df = pd.qcut(test_series, q=num_classes, retbins=True, labels=False)
+    # split_df = pd.qcut(yields, q=num_classes)
+    bins = split_df[1]
+
+    # bin the original dictionary
+    for key, val in label_dict.items():
+        [cropLabel] = bin_truth_data(np.array([val]), bins)
+        label_dict[key] = cropLabel  # convert to label
+
+    # Write to pickle file
+    with open('json_store/labels/master_label_dict_binned.pkl', 'wb') as fp:
+        pickle.dump(label_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
+
 if __name__ == "__main__":
     
     # Extract county polygons from GeoJSON
@@ -140,7 +169,8 @@ if __name__ == "__main__":
     # test_truth_yield()
     # test_define_county_geometry()
     # test_define_county_geometry_pic_generation()
-    test_data_distribution()
+    # test_data_distribution()
+    convert_master_label_dict(num_classes=10)
 
 """
 Archive Functions ===============================================================
