@@ -269,6 +269,10 @@ def read_pickle_crop_labels():
             county_label_dict = pickle.load(fp)
             master_label_dict = {**master_label_dict, **county_label_dict}
 
+    # write master pickle file to local directory
+    with open('json_store/labels/master_label_dict.pkl', 'wb') as fp:
+        pickle.dump(master_label_dict, fp)
+
     return master_label_dict
 
 """
