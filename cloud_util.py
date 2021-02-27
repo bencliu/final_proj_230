@@ -70,7 +70,6 @@ def s3ProcessLabelImage(s3_client, bucket, session, cropLabels, truth_data_distr
             labelDictionary[id] = cropLabel # convert to label
             idArray = np.append(idArray, id)
             print("FINISHED PROCESSING REAL IMAGE")
-            break # Todo: remove after testing
 
     #Partition: Dictionary of val, test, train keys to [Id List] containing relevant ids
     #Label Dictionary: Key is ID, Value is crop label
@@ -168,6 +167,31 @@ def obtainAndStoreCropLabels():
     pickle.dump(cropLabels, outfile)
     outfile.close()"""
 
+"""
+Function: This is a one-time function to generate a dictionary in the following form dict{key: id, value: aws file path}
+"""
+def create_file_path_directory():
+
+    session = boto3.Session(
+        aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+        aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+    )
+    s3 = session.resource('s3')
+    bucket = s3.Bucket('cs230data')
+
+    # extract all file paths into list
+    file_path_dict = {}
+    for obj in bucket.objects.all():
+        fileName = obj.key
+        if fileName.endswith('AnalyticMS_clip.tif'):
+            idSplit1 = fileName.split("Scene4Band/")[1]  # After "Scene4Band"
+            id = idSplit1.split("_3B_AnalyticMS_")[0]  # Before "AnalyticMS"
+            file_path_dict[id] = fileName
+            print(fileName)
+    # write to pickle file
+    with open('aws_file_dict.p', 'wb') as fp:
+        pickle.dump(file_path_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
+
 if __name__ == "__main__":
 
     session = boto3.Session(
@@ -178,7 +202,8 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230data')
     s3_client = session.client('s3')
 
-    createPartition(s3_client, bucket, session)
+    # createPartition(s3_client, bucket, session)
+    create_file_path_directory()
 
     """
     #obtainAndStoreCropLabels()

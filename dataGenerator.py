@@ -1,7 +1,8 @@
 import numpy as np
-import keras
+from tensorflow import keras
 import io
 import boto3
+import pickle
 
 # Import functions
 from imageProcessing import image_process
@@ -63,6 +64,11 @@ class DataGenerator(keras.utils.Sequence):
         X = np.empty((self.batch_size, *self.dim, self.n_channels)) # (numSamples, H, W, C)
         y = np.empty((self.batch_size), dtype=int) # (numSamples) => Labels
 
+        # read in AWS file path dictionary from pickle file
+        aws_file_dict = {}
+        with open('aws_file_dict.p', 'rb') as fp:
+            aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
+
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
             # Store sample
@@ -70,16 +76,11 @@ class DataGenerator(keras.utils.Sequence):
                 aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
                 aws_secret_access_key=AWS_SERVER_SECRET_KEY,
             )
-            s3 = session.resource('s3')
-            bucket = s3.Bucket('cs230data')
-            for obj in bucket.objects.all():
-                fileName = obj.key
-                if fileName.endswith('AnalyticMS_clip.tif'):
-                    idSplit1 = fileName.split("Scene4Band/")[1]  # After "Scene4Band"
-                    id = idSplit1.split("_3B_AnalyticMS_")[0]  # Before "AnalyticMS"
-                    if id == ID:
-                        X_data = image_process(session, 's3://cs230data/' + fileName) #Process image
-                        X[i,] = X_data
+
+            # process image
+            X_data = image_process(session, 's3://cs230data/' + aws_file_dict[ID])  # shape (C, H, W)
+            X_data = np.transpose(X_data, (1, 2, 0))  # shape (H, W, C)
+            X[i,] = X_data
 
             # Store class
             y[i] = self.labels[ID] #Store label

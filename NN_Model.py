@@ -7,8 +7,8 @@ from tensorflow.keras import optimizers
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
     MaxPooling2D, BatchNormalization
 from tensorflow.keras.applications.resnet50 import ResNet50
-from keras.layers import LSTM
-from keras import callbacks
+from tensorflow.keras.layers import LSTM
+from tensorflow.keras import callbacks
 import tensorflow.keras.backend as K
 import os
 import time
@@ -115,7 +115,7 @@ class VanillaModel():
                            batch_size=hp_batch_size)  # Batch_size can be changed to hp_batch_size
 
         # Parameters
-        self.genParams = {'dim': (7000, 7000),
+        self.genParams = {'dim': (850, 850),
                           'batch_size': hp_batch_size,
                           'n_classes': 10,
                           'n_channels': 7,
@@ -140,9 +140,6 @@ class VanillaModel():
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-
-        # Datasets: TODO, place various arguments in the s3ProcessLabelImage()
-        # labels, partition = s3ProcessLabelImage()
 
         # Generators
         self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)
@@ -222,7 +219,8 @@ if __name__ == "__main__":
     # Load in saved data structures
     with open('partition.p', 'rb') as fp:
         partition = pickle.load(fp) # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
-    labels = read_pickle_crop_labels() # dictionary of {'id-1': label 1, ... , 'id-n', label n}
+    with open('json_store/labels/master_label_dict_binned.pkl', 'rb') as fp:
+        labels = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
 
     # create model
     NN = VanillaModel()
