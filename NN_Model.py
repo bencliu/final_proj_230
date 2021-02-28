@@ -218,7 +218,7 @@ class VanillaModel():
     def eval(self, labels, partition):
         # Evaluate Model on Test Set
         self.testGenerator = DataGenerator(partition['test'], labels, **self.genParams)
-        self.model.evaluate(generator=self.testGenerator)
+        self.model.evaluate(x=self.testGenerator)
 
 """
 Questions / TODO List for Model Definition:
