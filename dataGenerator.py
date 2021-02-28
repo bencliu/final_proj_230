@@ -10,8 +10,8 @@ from imageProcessing import image_process
 # Define global variables
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
 AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
-maxW = 400
-maxH = 400
+maxW = 420
+maxH = 420
 
 """
 Class: The DataGenerator class allows for data to be generated in parallel by CPU and fed into GPU real time.
