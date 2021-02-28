@@ -2,3 +2,4 @@ images/
 testIgnore/
 data/
 vanilla_model.h5
+processed_images/

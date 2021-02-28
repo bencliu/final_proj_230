@@ -23,6 +23,7 @@ AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 # Import functions
 from imageProcessing import image_process
 from orders import obtain_crop_labels
+import pickle5 as pickle
 
 #Import county extraction functions
 from extractCountyData import read_county_GeoJSON, read_county_truth
@@ -201,8 +202,8 @@ def store_processed_images(maxH, maxW, scaling):
 
     # read back in saved crop list
     completed_images = []
-    if (os.path.isfile('json_store/completed_images.pkl')):
-        with open('json_store/completed_images.pkl', 'rb') as fp:
+    if (os.path.isfile('processed_images/completed_images.pkl')):
+        with open('processed_images/completed_images.pkl', 'rb') as fp:
             completed_images = pickle.load(fp)
 
     # start session
@@ -220,10 +221,11 @@ def store_processed_images(maxH, maxW, scaling):
     # loop through all the images in data set
     count = 0
     for key, val in aws_file_dict.items():
-
+        count += 1
+        if count < 416:
+            continue
         # start timer
         start = time.time()
-        count += 1
 
         # check to see if id has already been run
         if key in completed_images:

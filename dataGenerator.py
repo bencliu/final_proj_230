@@ -82,10 +82,11 @@ class DataGenerator(keras.utils.Sequence):
 
             # process image
             #X_data = image_process(session, 's3://cs230data/' + aws_file_dict[ID], maxW=maxW, maxH=maxH)  # shape (C, H, W)
-            X_data = np.random.uniform(low=0.0, high=250.0, size=(7, 500, 500))
-            X_data = np.transpose(X_data, (1, 2, 0))  # shape (H, W, C)
+            #X_data = np.random.uniform(low=0.0, high=250.0, size=(7, 500, 500))
+            X_data = np.load('processed_images/vanilla_model/' + ID + '.npy', allow_pickle=True) 
+            #X_data = np.transpose(X_data, (1, 2, 0))  # shape (H, W, C)
             X_data = X_data / 255
-            #assert X_data.shape == (maxW+1, maxH+1, 7)
+            assert X_data.shape == (maxW, maxH, 7)
             X[i,] = X_data
 
             # Store class
