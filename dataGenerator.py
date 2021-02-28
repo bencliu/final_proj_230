@@ -72,18 +72,19 @@ class DataGenerator(keras.utils.Sequence):
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # Generate data
-        session = boto3.Session(
-            aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
-            aws_secret_access_key=AWS_SERVER_SECRET_KEY,
-        )
+        #session = boto3.Session(
+        #    aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+        #    aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+        #)
         for i, ID in enumerate(list_IDs_temp):
             #print("GENERATING NEW IMAGE <GATA_GENERATION> Iteration", i)
             # Store sample
 
             # process image
-            X_data = image_process(session, 's3://cs230data/' + aws_file_dict[ID], maxW=maxW, maxH=maxH)  # shape (C, H, W)
+            #X_data = image_process(session, 's3://cs230data/' + aws_file_dict[ID], maxW=maxW, maxH=maxH)  # shape (C, H, W)
+            X_data = np.random.uniform(low=0.0, high=250.0, size=(7, 500, 500))
             X_data = np.transpose(X_data, (1, 2, 0))  # shape (H, W, C)
-            X_data /= 255
+            X_data = X_data / 255
             #assert X_data.shape == (maxW+1, maxH+1, 7)
             X[i,] = X_data
 
