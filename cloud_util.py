@@ -232,6 +232,7 @@ def store_processed_images(maxH, maxW, scaling):
         # perform image processing
         image = image_process(session, 's3://cs230data/' + str(val), maxH, maxW, scaling) # shape (C, H, W)
         image = np.transpose(image, (1, 2, 0))  # shape (H, W, C)
+        image = image / 255
 
         # write to local directory
         with open('processed_images/vanilla_model/' + str(key) + '.npy', 'wb') as fp:
