@@ -33,6 +33,7 @@ class VanillaModel():
         self.genParams = None
         self.train_generator = None
         self.validation_generator = None
+        self.testGenerator = None
 
     def define_compile(self, hp):
         #Sequential neural net model definition, Note: FilterSize, KernelSize
@@ -166,9 +167,13 @@ class VanillaModel():
         return self.model
 
 
-    def train(self, labels, partition, hp=False):
+    def train(self, labels, partition, hp=False, paramPath=None):
         # Instantiate tuner for hypertuning, code reference: Tensorflow documentation
         # Note: Might be erros in the model callable
+
+        if paramPath:
+            self.model = keras.models.load_model(paramPath)  # load in previous model to evaluate
+            return self.model
 
         # Define model callbacks
         checkpoint_cb = callbacks.ModelCheckpoint("vanilla_model.h5")
@@ -209,6 +214,11 @@ class VanillaModel():
                                 use_multiprocessing=True,
                                 workers=6)
         return history
+
+    def eval(self, labels, partition):
+        # Evaluate Model on Test Set
+        self.testGenerator = DataGenerator(partition['test'], labels, **self.genParams)
+        self.model.evaluate(generator=self.testGenerator)
 
 """
 Questions / TODO List for Model Definition:
@@ -276,15 +286,13 @@ if __name__ == "__main__":
     NN.compile_without_hp()
 
     # train model
-    NN.train(labels=labels, partition=partition)
+    NN.train(labels=labels, partition=partition, paramPath="vanilla_model.h5")
+    NN.eval(labels=labels, partition=partition)
 
-    """
     # Plot Metrics
-    analyze_data(history)
+    #analyze_data(history)
     
-    # Evaluate Model on Test Set
-    # NN_model = keras.models.load_model("TBD_name_model.h5") # load in previous model to evaluate
-    NN_model.evaluate(X_test, y_test)"""
+
 
 
 
