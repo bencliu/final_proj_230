@@ -8,8 +8,8 @@ import pickle5 as pickle
 from imageProcessing import image_process
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN74FUBNUNK" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "iZ0NqWSLVGxDzferDJuzoykADF6/GkTvRZepGQy1Xi" #TODO: Add after pull
 maxW = 500
 maxH = 500
 
