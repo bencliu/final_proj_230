@@ -13,6 +13,8 @@ import pickle
 import time
 import io
 from extractCountyData import truth_data_distribution, bin_truth_data
+import datetime
+import os
 
 # Define global variables
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
@@ -192,6 +194,76 @@ def create_file_path_directory():
     with open('aws_file_dict.p', 'wb') as fp:
         pickle.dump(file_path_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
+"""
+Function: Extract images from s3 bucket, perform image processing, write back to the cloud
+"""
+def store_processed_images(maxH, maxW, scaling):
+
+    # read back in saved crop list
+    completed_images = []
+    if (os.path.isfile('json_store/completed_images.pkl')):
+        with open('json_store/completed_images.pkl', 'rb') as fp:
+            completed_images = pickle.load(fp)
+
+    # start session
+    session = boto3.Session(
+        aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+        aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+    )
+    s3 = session.resource('s3')
+    bucket = s3.Bucket('cs230data')
+
+    # read in pickl file for all the file paths
+    with open('aws_file_dict.p', 'rb') as fp:
+        aws_file_dict = pickle.load(fp)
+
+    # loop through all the images in data set
+    count = 0
+    for key, val in aws_file_dict.items():
+
+        # start timer
+        start = time.time()
+        count += 1
+
+        # check to see if id has already been run
+        if key in completed_images:
+            continue # skip image if already processed
+
+        # perform image processing
+        image = image_process(session, 's3://cs230data/' + str(val), maxH, maxW, scaling) # shape (C, H, W)
+        image = np.transpose(image, (1, 2, 0))  # shape (H, W, C)
+
+        # write to local directory
+        with open('processed_images/vanilla_model/' + str(key) + '.npy', 'wb') as fp:
+            pickle.dump(image, fp)
+
+        # store to completed images to local directory
+        completed_images.append(key)
+        with open('processed_images/completed_images.pkl', 'wb') as fp:
+            pickle.dump(completed_images, fp)
+
+        # print statements
+        end = time.time()
+        print("Image " + str(count) + " is complete in " + str(end - start))
+
+"""
+Test Function: Store process images
+"""
+def test_store_processed_images():
+
+    # run store process images
+    store_processed_images(maxH=500, maxW=500, scaling=0.04)
+
+    # verify contents of test image
+    with open('json_store/completed_images.pkl', 'rb') as fp:
+        processed_images = pickle.load(fp)
+        print("processed images")
+        print(processed_images)
+    with open('processed_images/vanilla_model/20191012_150709_1049.npy', 'rb') as fp:
+        sample = pickle.load(fp)
+        print(sample.shape)
+
+
 if __name__ == "__main__":
 
     session = boto3.Session(
@@ -203,7 +275,9 @@ if __name__ == "__main__":
     s3_client = session.client('s3')
 
     # createPartition(s3_client, bucket, session)
-    create_file_path_directory()
+    #create_file_path_directory()
+    store_processed_images(maxH=500, maxW=500, scaling=0.04)
+    # stored images complete
 
     """
     #obtainAndStoreCropLabels()
