@@ -83,6 +83,7 @@ class DataGenerator(keras.utils.Sequence):
             # process image
             X_data = image_process(session, 's3://cs230data/' + aws_file_dict[ID], maxW=maxW, maxH=maxH)  # shape (C, H, W)
             X_data = np.transpose(X_data, (1, 2, 0))  # shape (H, W, C)
+            X_data /= 255
             #assert X_data.shape == (maxW+1, maxH+1, 7)
             X[i,] = X_data
 

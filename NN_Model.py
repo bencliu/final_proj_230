@@ -88,13 +88,13 @@ class VanillaModel():
             Conv2D(128, 3, activation="relu", padding="same"),
             Conv2D(128, 3, activation="relu", padding="same"),
             MaxPooling2D(2),
-            Conv2D(256, 3, activation="relu", padding="same"),
-            Conv2D(256, 3, activation="relu", padding="same"),
-            MaxPooling2D(2),
+            #Conv2D(256, 3, activation="relu", padding="same"),
+            #Conv2D(256, 3, activation="relu", padding="same"),
+            #MaxPooling2D(2),
             Flatten(),
-            Dense(256, activation="relu"),
-            Dropout(0.5),
-            BatchNormalization(),
+            #Dense(256, activation="relu"),
+            #Dropout(0.5),
+            #BatchNormalization(),
             Dense(128, activation="relu"),
             Dropout(0.5),
             BatchNormalization(),
@@ -114,11 +114,12 @@ class VanillaModel():
 
         # Parameters
         self.genParams = {'dim': (self.width, self.height),
-                  'batch_size': 10,
+                  'batch_size': 16,
                   'n_classes': 10,
                   'n_channels': 7,
                   'shuffle': True}
 
+        print(self.model.summary())
         return self.model
 
     def define_res_compile(self, hp):
@@ -200,7 +201,7 @@ class VanillaModel():
             bestModel = tuner.hypermodel.build(best_hps)
 
         history = bestModel.fit(x=self.train_generator,
-                                epochs=300,
+                                epochs=200,
                                 verbose=1,
                                 validation_data=self.validation_generator,
                                 callbacks=[checkpoint_cb, early_stopping_tuning_cb, tensorboard_cb],
@@ -275,7 +276,7 @@ if __name__ == "__main__":
     NN.compile_without_hp()
 
     # train model
-    NN.train(labels=labels, partition=partition)
+    #NN.train(labels=labels, partition=partition)
 
     """
     # Plot Metrics
