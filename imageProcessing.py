@@ -44,7 +44,7 @@ Function: Image processing from image to tensor
 @return: image np.ndarray with computed vegetation indices with shape (# channels, H, W)
 TODO: Change max height and max width parameters
 """
-def image_process(session, path, maxH=420, maxW=420, scaling=0.04):
+def image_process(session, path, maxH=500, maxW=500, scaling=0.04):
 
     with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
                       aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
@@ -181,8 +181,8 @@ Test Function: Test robustness for standardize_image_np
 def test_standardize_image_np():
 
     # reference sizes
-    maxH = 400
-    maxW = 400
+    maxH = 500
+    maxW = 500
 
     # reference images
     image1 = np.random.randint(low=0, high=5, size=(4, 300, 300)) # even, even
