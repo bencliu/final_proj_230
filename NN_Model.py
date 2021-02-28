@@ -276,7 +276,7 @@ if __name__ == "__main__":
     NN.compile_without_hp()
 
     # train model
-    #NN.train(labels=labels, partition=partition)
+    NN.train(labels=labels, partition=partition)
 
     """
     # Plot Metrics
