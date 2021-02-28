@@ -24,8 +24,8 @@ import pickle5 as pickle
 
 class VanillaModel():
     def __init__(self):
-        self.width = 420
-        self.height = 420
+        self.width = 500
+        self.height = 500
         self.numChannels = 7
         self.inputShape = [self.width, self.height, self.numChannels]
         self.model = None

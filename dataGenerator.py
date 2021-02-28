@@ -8,10 +8,17 @@ import pickle5 as pickle
 from imageProcessing import image_process
 
 # Define global variables
+<<<<<<< HEAD
 AWS_SERVER_PUBLIC_KEY = "AKIA5Q22XNN74FUBNUNK" #TODO: Add after pull
 AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
-maxW = 420
-maxH = 420
+maxW = 500
+maxH = 500
+=======
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+maxW = 500
+maxH = 500
+>>>>>>> b7fc533e9ac8367926b599a88d75baadcba4ca45
 
 """
 Class: The DataGenerator class allows for data to be generated in parallel by CPU and fed into GPU real time.
