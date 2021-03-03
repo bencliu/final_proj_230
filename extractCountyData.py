@@ -84,18 +84,6 @@ def read_county_truth(filename: str):
     return county_truth_yields
 
 """
-Test Function: verifies the binning functions
-@Params: n/a
-@Return: n/a
-"""
-def test_data_distribution():
-    print("--- starting test for data distribution ---")
-    bins_array = truth_data_distribution(filename = "json_store/Illinois_Soybeans_Truth_Data.csv", num_classes = 10)
-    test_array = np.array([20, 38, 45])
-    print(bin_truth_data(test_array, bins_array)) # should print 1, 2, 4
-    print("--- test complete ---")
-
-"""
 Function: This function bins the truth data based on the classification split
 @Params: truth_data of shape (# of examples, 1), binned ranges np.array
 @Returns: array of shape (# of examples, 1) binned into the given number of classes
@@ -105,56 +93,48 @@ def bin_truth_data(truth_data, bins_array):
     return binned_truth
 
 """
-Function: Determine distribution of truth data and split output range of classes 
-@Params: county truth dict[County FIP: dict[year, yield]]
-@Return: Array form of quantile split of data
+Function: This method reads individual county .pkl dict{key: id, values: yield/county}
+Note: Only run this funcntion once all the local pickle files have been generated
+@Params: Filepath to processed FIPs pickle file (output of obtain_crop_labels), Number of desired classes
+@Return: None
 """
-def truth_data_distribution(filename: str, num_classes = 10):
+def export_classification_labels(completed_fips_list_file_path: str, num_classes: int):
 
-    # Extract all yields
-    yields = []
-    with open(filename, 'r') as file:
-        reader = csv.reader(file, delimiter=',', skipinitialspace=True)
-        next(reader)
-        for row in reader:
-            yields.append(float(row[-2]))
+    # read in list of FIPS
+    print("----------Start process to create labels----------")
+    completed_fips = []
+    with open(completed_fips_list_file_path, 'rb') as fp:
+        completed_fips = pickle.load(fp)
+
+    # read in all county label dictionary files
+    master_label_dict = {}
+    for fipCode in completed_fips:
+        county_label_dict = {}
+        with open('json_store/labels/' + str(fipCode) + '.pkl', 'rb') as fp:
+            county_label_dict = pickle.load(fp)
+            master_label_dict = {**master_label_dict, **county_label_dict}
+    print("----------Finished reading in .pkl files----------")
 
     # Perform the quantile cut
-    np.random.seed(42)
-    test_list_rnd = np.array(yields) + np.random.random(len(yields))  # add noise to data
-    test_series = pd.Series(test_list_rnd, name='value_rank')
-    split_df = pd.qcut(test_series, q=num_classes, retbins=True, labels=False)
-    # split_df = pd.qcut(yields, q=num_classes)
-    bins = split_df[1]
-    return bins
-
-"""
-Function: Converts master label dict with dict(key: id, value: yield/county) to dict(key: id, value: label)
-"""
-def convert_master_label_dict(num_classes = 10):
-
-    # extract pickle file
-    label_dict = {}
-    with open('json_store/labels/master_label_dict.pkl', 'rb') as fp:
-        label_dict = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
-    values = list(label_dict.values())
-
-    # Perform the quantile cut
+    values = list(master_label_dict.values()) # extract values from
     np.random.seed(42)
     test_list_rnd = np.array(values) + np.random.random(len(values))  # add noise to data
     test_series = pd.Series(test_list_rnd, name='value_rank')
     split_df = pd.qcut(test_series, q=num_classes, retbins=True, labels=False)
     # split_df = pd.qcut(yields, q=num_classes)
     bins = split_df[1]
+    print("----------Classification Quantile Cut Complete----------")
 
     # bin the original dictionary
-    for key, val in label_dict.items():
+    for key, val in master_label_dict.items():
         [cropLabel] = bin_truth_data(np.array([val]), bins)
-        label_dict[key] = cropLabel  # convert to label
+        master_label_dict[key] = cropLabel  # convert to label
 
     # Write to pickle file
     with open('json_store/labels/master_label_dict_binned.pkl', 'wb') as fp:
-        pickle.dump(label_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(master_label_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    print("----------Classification Label Dictionary Complete----------")
+    print("Navigate to json_store/labels/master_label_dict_binned.pkl for completed product")
 
 if __name__ == "__main__":
     
@@ -164,13 +144,8 @@ if __name__ == "__main__":
     # Extract county truth yields from csv
     # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
 
-    # Test county extraction
-    # test_county_GeoJSON()
-    # test_truth_yield()
-    # test_define_county_geometry()
-    # test_define_county_geometry_pic_generation()
-    # test_data_distribution()
-    convert_master_label_dict(num_classes=10)
+    # Obtain classification labels from truth data
+    export_classification_labels(completed_fips_list_file_path = 'json_store/labels/completed_fips.pkl', num_classes = 10)
 
 """
 Archive Functions ===============================================================
@@ -330,4 +305,67 @@ def depth(seq):
     except StopIteration:
         return level
 
+"""
+Test Function: verifies the binning functions
+@Params: n/a
+@Return: n/a
+"""
+def test_data_distribution():
+    print("--- starting test for data distribution ---")
+    bins_array = truth_data_distribution(filename = "json_store/Illinois_Soybeans_Truth_Data.csv", num_classes = 10)
+    test_array = np.array([20, 38, 45])
+    print(bin_truth_data(test_array, bins_array)) # should print 1, 2, 4
+    print("--- test complete ---")
+
+"""
+Function: Determine distribution of truth data and split output range of classes 
+@Params: county truth dict[County FIP: dict[year, yield]]
+@Return: Array form of quantile split of data
+"""
+def truth_data_distribution(filename: str, num_classes = 10):
+
+    # Extract all yields
+    yields = []
+    with open(filename, 'r') as file:
+        reader = csv.reader(file, delimiter=',', skipinitialspace=True)
+        next(reader)
+        for row in reader:
+            yields.append(float(row[-2]))
+
+    # Perform the quantile cut
+    np.random.seed(42)
+    test_list_rnd = np.array(yields) + np.random.random(len(yields))  # add noise to data
+    test_series = pd.Series(test_list_rnd, name='value_rank')
+    split_df = pd.qcut(test_series, q=num_classes, retbins=True, labels=False)
+    # split_df = pd.qcut(yields, q=num_classes)
+    bins = split_df[1]
+    return bins
+
+"""
+Function: Converts master label dict with dict(key: id, value: yield/county) to dict(key: id, value: label)
+"""
+def convert_master_label_dict(num_classes):
+
+    # extract pickle file
+    label_dict = {}
+    with open('json_store/labels/master_label_dict.pkl', 'rb') as fp:
+        label_dict = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
+    values = list(label_dict.values())
+
+    # Perform the quantile cut
+    np.random.seed(42)
+    test_list_rnd = np.array(values) + np.random.random(len(values))  # add noise to data
+    test_series = pd.Series(test_list_rnd, name='value_rank')
+    split_df = pd.qcut(test_series, q=num_classes, retbins=True, labels=False)
+    # split_df = pd.qcut(yields, q=num_classes)
+    bins = split_df[1]
+
+    # bin the original dictionary
+    for key, val in label_dict.items():
+        [cropLabel] = bin_truth_data(np.array([val]), bins)
+        label_dict[key] = cropLabel  # convert to label
+
+    # Write to pickle file
+    with open('json_store/labels/master_label_dict_binned.pkl', 'wb') as fp:
+        pickle.dump(label_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
 

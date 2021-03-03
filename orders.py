@@ -203,9 +203,10 @@ Integrated Function:
     - county_dictionary of dict[County FIP: List[List[Coordinates]]]
     - county_truth of dict[County FIP: dict[year, yield]]
 @ Return: Pickle files in local directory
+NOTE: This function is known to constantly fail due to connection 54 error. There is a saving mechanism which stores the
+completed fips as a list in a .pkl file.
 """
-def obtain_crop_labels(county_dictionary, county_truth):
-    master_yield_id_dictionary = {}
+def extract_raw_labels(county_dictionary, county_truth):
 
     # read back in saved crop list
     completed_fips = []
@@ -232,7 +233,6 @@ def obtain_crop_labels(county_dictionary, county_truth):
         ids = list(county_dict.keys())
         with open('json_store/labels/' + str(fipCode) + '.pkl', 'wb') as fp:
             pickle.dump(county_dict, fp)
-        # master_yield_id_dictionary = {**master_yield_id_dictionary, **county_dict} # Need to be compatabile with 3.8
 
         # store completed FIPS
         completed_fips.append(fipCode)
@@ -243,37 +243,6 @@ def obtain_crop_labels(county_dictionary, county_truth):
         end = time.time()
         print("County " + str(fipCode) + " complete in " + str(end-start))
         print(datetime.datetime.now().time())
-
-"""
-Function: This method reads the generated pickle files into the label dictionary
-Note: Only run this funcntion once all the local pickle files have been generated
-@Params: None
-@Return: Label Dictionary of dict{key: id, value: yield per image}
-"""
-def read_pickle_crop_labels():
-
-    # read in list of FIPS
-    completed_fips = []
-    with open('json_store/labels/completed_fips.pkl', 'rb') as fp:
-        completed_fips = pickle.load(fp)
-
-    # test for overlapping counties
-    # completed_fips = [77, 87]
-    # completed_fips = [77, 181]
-
-    # read in all county label dictionary files
-    master_label_dict = {}
-    for fipCode in completed_fips:
-        county_label_dict = {}
-        with open('json_store/labels/' + str(fipCode) + '.pkl', 'rb') as fp:
-            county_label_dict = pickle.load(fp)
-            master_label_dict = {**master_label_dict, **county_label_dict}
-
-    # write master pickle file to local directory
-    with open('json_store/labels/master_label_dict.pkl', 'wb') as fp:
-        pickle.dump(master_label_dict, fp)
-
-    return master_label_dict
 
 """
 Helper function: Returns dictionary of image_ids corresponding to crop yield labels 
@@ -412,22 +381,11 @@ if __name__ == "__main__":
     #test_process_crop_statistics(dict)
     """
 
-    label_dict = read_pickle_crop_labels()
-    print(len(label_dict))
-
     """print("Starting to collect labels")
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
-    obtain_crop_labels(county_dict, county_truth)
+    extract_raw_labels(county_dict, county_truth)
     print("Finished collecting labels")"""
-
-    """path = "json_store/labels_all"
-    outfile = open(path, 'wb')
-    pickle.dump(cropLabels, outfile)
-    outfile.close()"""
-
-
-
 
 
 
