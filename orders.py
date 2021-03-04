@@ -293,23 +293,22 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
                 #Add other metdata
                 print(image.json())
                 anomalous_pix_perc = image.json()["properties"]["anomalous_pixels"]
-                clear_percent = image.json()["properties"]["clear_percent"]
+                #clear_percent = image.json()["properties"]["clear_percent"]
                 cloud_cover = image.json()["properties"]["cloud_cover"]
-                cloud_percent = image.json()["properties"]["cloud_percent"]
-                heavy_haze_percent = image.json()["properties"]["heavy_haze_percent"]
+                #cloud_percent = image.json()["properties"]["cloud_percent"]
+                #heavy_haze_percent = image.json()["properties"]["heavy_haze_percent"]
                 origin_x = image.json()["properties"]["origin_x"]
                 origin_y = image.json()["properties"]["origin_y"]
-                snow_ice_percent = image.json()["properties"]["snow_ice_percent"]
-                shadow_percent = image.json()["properties"]["shadow_percent"]
+                #snow_ice_percent = image.json()["properties"]["snow_ice_percent"]
+                #shadow_percent = image.json()["properties"]["shadow_percent"]
 
-                fieldnames = ['id', 'anomalous_pix_perc', 'clear_percent', 'cloud_cover', 'cloud_percent', 'heavy_haze_percent',
-                              'origin_x', 'origin_y', 'snow_ice_percent', 'shadow_percent']
+                fieldnames = ['id', 'anomalous_pix_perc', 'cloud_cover',
+                              'origin_x', 'origin_y']
                 with open(r'meta.csv', 'a', newline='') as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writerow(
-                        {'id': itemid, 'anomalous_pix_perc': anomalous_pix_perc, 'clear_percent': clear_percent, 'cloud_cover': cloud_cover,
-                         'cloud_percent': cloud_percent, 'heavy_haze_percent': heavy_haze_percent, 'origin_x': origin_x,
-                         'origin_y': origin_y, 'snow_ice_percent': snow_ice_percent, 'shadow_percent': shadow_percent})
+                        {'id': itemid, 'anomalous_pix_perc': anomalous_pix_perc, 'cloud_cover': cloud_cover,
+                         'origin_x': origin_x, 'origin_y': origin_y})
 
 
 
