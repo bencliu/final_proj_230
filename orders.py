@@ -301,9 +301,10 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
                               'origin_x', 'origin_y', 'snow_ice_percent', 'shadow_percent']
                 with open(r'meta.csv', 'a', newline='') as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                    writer.writerow({'id':itemid ,'anomalous_pix_perc': anomalous_pix_perc, 'clear_percent':clear_percent, 'cloud_cover':cloud_cover,
-                                     'cloud_percent': cloud_percent, 'heavy_haze_percent':heavy_haze_percent, 'origin_x':origin_x,
-                                     'origin_y':origin_y, 'snow_ice_percent':snow_ice_percent, 'shadow_percent':shadow_percent})
+                    writer.writerow(
+                        {'id': itemid, 'anomalous_pix_perc': anomalous_pix_perc, 'clear_percent': clear_percent, 'cloud_cover': cloud_cover,
+                         'cloud_percent': cloud_percent, 'heavy_haze_percent': heavy_haze_percent, 'origin_x': origin_x,
+                         'origin_y': origin_y, 'snow_ice_percent': snow_ice_percent, 'shadow_percent': shadow_percent})
 
 
 
