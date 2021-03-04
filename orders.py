@@ -17,7 +17,7 @@ import csv
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
-PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
+PLANET_API_KEY = '3b5b83781d7d443e9a21b943c913c280'
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
 AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
@@ -215,38 +215,42 @@ def extract_raw_labels(county_dictionary, county_truth):
 
     # read back in saved crop list
     completed_fips = []
-    if (os.path.isfile('json_store/labels/completed_fips.pkl')):
-        with open('json_store/labels/completed_fips.pkl', 'rb') as fp:
+    if (os.path.isfile('json_store/labels_v2/completed_fips.pkl')):
+        with open('json_store/labels_v2/completed_fips.pkl', 'rb') as fp:
             completed_fips = pickle.load(fp)
 
+    # define the range of years to look at
+    yearRange = list(range(2018, 2020))
+
     #Loop through counties
-    for fipCode, coordinates in county_dictionary.items():
+    for year in yearRange:
+        for fipCode, coordinates in county_dictionary.items():
 
-        # Assuming restart after failed run, check to see if fip has already been processed
-        if (fipCode in completed_fips):
-            continue # skip fip if already processed
+            # Assuming restart after failed run, check to see if fip has already been processed
+            if (fipCode in completed_fips):
+                continue # skip fip if already processed
 
-        # process county
-        print("PROCESS NEW COUNTY: " + str(fipCode))
-        start = time.time()
-        #Attain Item IDs for County
-        geoFilter = define_county_geometry(coordinates)
-        searchFilter = combined_filter(geoFilter)
-        county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
+            # process county
+            print("PROCESS NEW COUNTY: " + str(fipCode))
+            start = time.time()
+            #Attain Item IDs for County
+            geoFilter = define_county_geometry(coordinates)
+            searchFilter = combined_filter(geoFilter, year)
+            county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
 
-        # write save county dict (key: id, value: yields)
-        ids = list(county_dict.keys())
-        with open('json_store/labels/' + str(fipCode) + '.pkl', 'wb') as fp:
-            pickle.dump(county_dict, fp)
+            # write save county dict (key: id, value: yields)
+            ids = list(county_dict.keys())
+            with open('json_store/labels_v2/' + str(fipCode) + str(year) + '.pkl', 'wb') as fp:
+                pickle.dump(county_dict, fp)
 
         # store completed FIPS
         completed_fips.append(fipCode)
-        with open('json_store/labels/completed_fips.pkl', 'wb') as fp:
+        with open('json_store/labels_v2/completed_fips.pkl', 'wb') as fp:
             pickle.dump(completed_fips, fp)
 
         # output timed data
         end = time.time()
-        print("County " + str(fipCode) + " complete in " + str(end-start))
+        print("County " + str(fipCode) + str(year) + " complete in " + str(end-start))
         print(datetime.datetime.now().time())
 
 """
@@ -287,6 +291,7 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
                 image_to_yield_dict[itemid] = yieldPerImage
 
                 #Add other metdata
+                print(image.json())
                 anomalous_pix_perc = image.json()["properties"]["anomalous_pixels"]
                 clear_percent = image.json()["properties"]["clear_percent"]
                 cloud_cover = image.json()["properties"]["cloud_cover"]
@@ -382,7 +387,7 @@ def combined_filter(geojson, year):
         "type": "RangeFilter",
         "field_name": "cloud_cover",
         "config": {
-            "lte": 0.5
+            "lte": 0.25
         }
     }
 
@@ -403,17 +408,17 @@ def combined_filter(geojson, year):
 
 if __name__ == "__main__":
 
-
+    """
     print("STARTING ORDERS PIPELINE")
     county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     integrated_order_pipe(county_dictionary)
+    """
 
-
-    """print("Starting to collect labels")
+    print("Starting to collect labels")
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     extract_raw_labels(county_dict, county_truth)
-    print("Finished collecting labels")"""
+    print("Finished collecting labels")
 
 
 
