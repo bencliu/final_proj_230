@@ -13,6 +13,7 @@ import datetime
 import os.path
 import time
 import pprint
+import csv
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
@@ -269,23 +270,38 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
 
         #Yield for each strip
         yieldPerStrip = cropYieldInTimeSplit / numStrips
-        # print("YIELD PER STRIP:", yieldPerStrip)
 
         #Loop through each strip
         for stripid, itemVec in strip_dict.items():
             #Obtain yield per each image **Naively depends on num images**
             numImages = len(itemVec)
             yieldPerImage = yieldPerStrip / numImages
-            # print("YIELD PER image:", yieldPerImage)
             #Assign crop yields to each image: Update dictionary with itemID, yield
             for image in itemVec:
-                #TODONOW, Currently Debugging
-                prop = image.json()
-                # print("PROP:", prop)
-                # print("ACQUIRED:", image.json()['properties']['acquired'])
-                itemid = image.json()['id'] #Can add other metadata from the itemResult
-                # print(itemid)
+                #Add yield information
+                itemid = image.json()['id']
                 image_to_yield_dict[itemid] = yieldPerImage
+
+                #Add other metdata
+                anomalous_pix_perc = image.json()["properties"]["anomalous_pixels"]
+                clear_percent = image.json()["properties"]["clear_percent"]
+                cloud_cover = image.json()["properties"]["cloud_cover"]
+                cloud_percent = image.json()["properties"]["cloud_percent"]
+                heavy_haze_percent = image.json()["properties"]["heavy_haze_percent"]
+                origin_x = image.json()["properties"]["origin_x"]
+                origin_y = image.json()["properties"]["origin_y"]
+                snow_ice_percent = image.json()["properties"]["snow_ice_percent"]
+                shadow_percent = image.json()["properties"]["shadow_percent"]
+
+                fieldnames = ['id', 'anomalous_pix_perc', 'clear_percent', 'cloud_cover', 'cloud_percent', 'heavy_haze_percent',
+                              'origin_x', 'origin_y', 'snow_ice_percent', 'shadow_percent']
+                with open(r'meta.csv', 'a', newline='') as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writerow({'id':itemid ,'anomalous_pix_perc': anomalous_pix_perc, 'clear_percent':clear_percent, 'cloud_cover':cloud_cover,
+                                     'cloud_percent': cloud_percent, 'heavy_haze_percent':heavy_haze_percent, 'origin_x':origin_x,
+                                     'origin_y':origin_y, 'snow_ice_percent':snow_ice_percent, 'shadow_percent':shadow_percent})
+
+
 
     return image_to_yield_dict
 
@@ -324,7 +340,7 @@ def yield_for_time_split(dateTime, fipCode, county_truth):
     else:
         yearYield = county_truth[fipCode][year]
 
-    return yearYield / 12
+    return yearYield / 12 #Time split is set to months in fetchData.py
 
 def attain_itemids(combined_filter):
     item_type = "PSScene4Band"
