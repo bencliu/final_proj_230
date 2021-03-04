@@ -126,24 +126,28 @@ Order pipeline:
 - Write images to AWS buckets 
 """
 def integrated_order_pipe(county_dictionary):
-    #Loop through counties
-    for fipCode, coordinates in county_dictionary.items():
-        print("PROCESS NEW COUNTY:" + str(fipCode))
-        #Attain Item IDs for County
-        geoFilter = define_county_geometry(coordinates)
-        searchFilter = combined_filter(geoFilter)
-        id_vec = attain_itemids(searchFilter)
 
-        #Perform ordering and downloading of images (Code in tester) (Write to AWS)
-        order_and_download(id_vec, fipCode, coordinates)
-        print("COMPLETED S3 DOWNLOAD FOR {}".format(fipCode))
+    # define the range of years to look at
+    yearRange = list(range(2017, 2020))
 
-def order_and_download(itemidVector, fipCode, coordinates):
+    for year in yearRange:
+        for fipCode, coordinates in county_dictionary.items():
+            print("PROCESS NEW COUNTY " + str(fipCode) + " for the year of " + str(year))
+            #Attain Item IDs for County
+            geoFilter = define_county_geometry(coordinates)
+            searchFilter = combined_filter(geoFilter, year)
+            id_vec = attain_itemids(searchFilter)
+
+            #Perform ordering and downloading of images (Code in tester) (Write to AWS)
+            order_and_download(id_vec, fipCode, coordinates, year)
+            print("COMPLETED S3 DOWNLOAD FOR" + str(fipCode) + " in " + str(year))
+
+def order_and_download(itemidVector, fipCode, coordinates, year):
     print("Starting order and downloads")
     # define products
     single_product = [
         {
-            "item_ids": itemidVector,
+            "item_ids": itemidVector[:35],
             "item_type": "PSScene4Band",
             "product_bundle": "analytic"
         }
@@ -161,11 +165,11 @@ def order_and_download(itemidVector, fipCode, coordinates):
         }
     }
 
-    path_prefix = "county" + str(fipCode)
+    path_prefix = "county" + str(fipCode) + " " + str(year)
     # define delivery
     delivery = {
         "amazon_s3": {
-            "bucket": "cs230data",
+            "bucket": "cs230datarev2",
             "aws_region": "us-west-1",
             "aws_access_key_id": AWS_SERVER_PUBLIC_KEY,
             "aws_secret_access_key": AWS_SERVER_SECRET_KEY,
@@ -352,7 +356,7 @@ def attain_itemids(combined_filter):
 """
 CNN Baseline Test: 2019 Images August - November || 50% Cloud Cover
 """
-def combined_filter(geojson):
+def combined_filter(geojson, year):
     # Geo Filter
     geometry_filter = {
         "type": "GeometryFilter",
@@ -361,12 +365,14 @@ def combined_filter(geojson):
     }
 
     # Date Range
+    minDate = str(year) + "-09-15T00:00:00.000Z"
+    maxDate = str(year) + "-11-01T20:00:00.000Z"
     date_range_filter = {
         "type": "DateRangeFilter",
         "field_name": "acquired",
         "config": {
-            "gte": "2019-08-01T00:00:00.000Z",
-            "lte": "2019-11-01T20:00:00.000Z"
+            "gte": minDate,
+            "lte": maxDate
         }
     }
 
@@ -379,23 +385,28 @@ def combined_filter(geojson):
         }
     }
 
+    asset_filter = {
+        "type": "AssetFilter",
+        "config": [
+            "analytic" # only return AnalyticMS_clip.tif
+        ]
+    }
+
     # combine our geo, date, cloud filters
     combined_filter = {
         "type": "AndFilter",
-        "config": [geometry_filter, date_range_filter, cloud_cover_filter]
+        "config": [geometry_filter, date_range_filter, cloud_cover_filter, asset_filter]
     }
 
     return combined_filter
 
 if __name__ == "__main__":
 
-    """
+
     print("STARTING ORDERS PIPELINE")
-    county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties_visvalingam_weighted_20.geojson')
+    county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     integrated_order_pipe(county_dictionary)
-    # test function
-    #test_process_crop_statistics(dict)
-    """
+
 
     """print("Starting to collect labels")
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
