@@ -18,8 +18,8 @@ import csv
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = '3b5b83781d7d443e9a21b943c913c280'
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIAJW5VF6EYRTAGCZHQ" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
@@ -231,7 +231,7 @@ def extract_raw_labels(county_dictionary, county_truth):
                 continue # skip fip if already processed
 
             # process county
-            print("PROCESS NEW COUNTY: " + str(fipCode))
+            print("PROCESS NEW COUNTY: " + str(fipCode) + "_" + str(year))
             start = time.time()
             #Attain Item IDs for County
             geoFilter = define_county_geometry(coordinates)
@@ -240,18 +240,18 @@ def extract_raw_labels(county_dictionary, county_truth):
 
             # write save county dict (key: id, value: yields)
             ids = list(county_dict.keys())
-            with open('json_store/labels_v2/' + str(fipCode) + str(year) + '.pkl', 'wb') as fp:
+            with open('json_store/labels_v2/' + str(fipCode) + "_" + str(year) + '.pkl', 'wb') as fp:
                 pickle.dump(county_dict, fp)
 
-        # store completed FIPS
-        completed_fips.append(fipCode)
-        with open('json_store/labels_v2/completed_fips.pkl', 'wb') as fp:
-            pickle.dump(completed_fips, fp)
+            # store completed FIPS
+            completed_fips.append(str(fipCode) + "_" + str(year))
+            with open('json_store/labels_v2/completed_fips.pkl', 'wb') as fp:
+                pickle.dump(completed_fips, fp)
 
-        # output timed data
-        end = time.time()
-        print("County " + str(fipCode) + str(year) + " complete in " + str(end-start))
-        print(datetime.datetime.now().time())
+            # output timed data
+            end = time.time()
+            print("County " + str(fipCode) + str(year) + " complete in " + str(end-start))
+            print(datetime.datetime.now().time())
 
 """
 Helper function: Returns dictionary of image_ids corresponding to crop yield labels 
