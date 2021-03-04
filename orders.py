@@ -18,8 +18,8 @@ import csv
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 PLANET_API_KEY = '3b5b83781d7d443e9a21b943c913c280'
-AWS_SERVER_PUBLIC_KEY = "AKIAJW5VF6EYRTAGCZHQ" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
