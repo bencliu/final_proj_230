@@ -231,7 +231,7 @@ def extract_raw_labels(county_dictionary, county_truth):
                 continue # skip fip if already processed
 
             # process county
-            print("PROCESS NEW COUNTY: " + str(fipCode))
+            print("PROCESS NEW COUNTY: " + str(fipCode) + "_" + str(year))
             start = time.time()
             #Attain Item IDs for County
             geoFilter = define_county_geometry(coordinates)
@@ -240,18 +240,18 @@ def extract_raw_labels(county_dictionary, county_truth):
 
             # write save county dict (key: id, value: yields)
             ids = list(county_dict.keys())
-            with open('json_store/labels_v2/' + str(fipCode) + str(year) + '.pkl', 'wb') as fp:
+            with open('json_store/labels_v2/' + str(fipCode) + "_" + str(year) + '.pkl', 'wb') as fp:
                 pickle.dump(county_dict, fp)
 
-        # store completed FIPS
-        completed_fips.append(fipCode)
-        with open('json_store/labels_v2/completed_fips.pkl', 'wb') as fp:
-            pickle.dump(completed_fips, fp)
+            # store completed FIPS
+            completed_fips.append(str(fipCode) + "_" + str(year))
+            with open('json_store/labels_v2/completed_fips.pkl', 'wb') as fp:
+                pickle.dump(completed_fips, fp)
 
-        # output timed data
-        end = time.time()
-        print("County " + str(fipCode) + str(year) + " complete in " + str(end-start))
-        print(datetime.datetime.now().time())
+            # output timed data
+            end = time.time()
+            print("County " + str(fipCode) + str(year) + " complete in " + str(end-start))
+            print(datetime.datetime.now().time())
 
 """
 Helper function: Returns dictionary of image_ids corresponding to crop yield labels 
