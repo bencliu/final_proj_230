@@ -19,8 +19,8 @@ import kerastuner as kt
 from dataGenerator import DataGenerator
 from cloud_util import s3ProcessLabelImage
 from extractCountyData import truth_data_distribution
-from orders import read_pickle_crop_labels
 import pickle5 as pickle
+
 
 class VanillaModel():
     def __init__(self):
