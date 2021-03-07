@@ -17,8 +17,8 @@ import datetime
 import os
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "AKIAJW5VF6EYRTAGCZHQ" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
