@@ -26,4 +26,4 @@ def resetCSV():
         f.write('id, anomalous_pix_perc, clear_percent, cloud_cover, cloud_percent, heavy_haze_percent, origin_x, origin_y, snow_ice_percent, shadow_percent\n')
 
 if __name__ == "__main__":
-    resetCSV()
+    #resetCSV()
