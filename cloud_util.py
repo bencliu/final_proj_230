@@ -23,7 +23,7 @@ AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 # Import functions
 from imageProcessing import image_process
 # from orders import obtain_crop_labels
-# import pickle5 as pickle
+import pickle5 as pickle
 
 #Import county extraction functions
 from extractCountyData import read_county_GeoJSON, read_county_truth
@@ -209,8 +209,6 @@ def store_processed_images(maxH, maxW, scaling, completedPath='processed_images/
     count = 0
     for key, val in aws_file_dict.items():
         count += 1
-        if count < 416:
-            continue
         # start timer
         start = time.time()
 
