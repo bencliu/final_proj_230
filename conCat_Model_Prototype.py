@@ -3,10 +3,11 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 from tensorflow.keras import layers
+from tensorflow.keras import callbacks
 from tensorflow.keras import optimizers
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
     MaxPooling2D, BatchNormalization, concatenate, Input
-
+import pickle
 
 class ConcatDataGenerator(keras.utils.Sequence):
     def __init__(self, list_IDs, labels, batch_size, dim, n_channels, n_metaFeatures, n_classes, shuffle=True):
@@ -52,10 +53,15 @@ class ConcatDataGenerator(keras.utils.Sequence):
         meta_init = np.empty((self.batch_size, self.n_metaFeatures))
         y = np.empty((self.batch_size), dtype=int)  # (numSamples) => Labels
 
+        # read in AWS file path dictionary from pickle file
+        aws_file_dict = {}
+        with open('aws_file_dict_vUpdate.p.p', 'rb') as fp:
+            aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
+
         for i, ID in enumerate(list_IDs_temp):
             # extract raw image and metadata
-            input_image = raw_input_images[ID]  # from global variable definition
-            input_metadata = raw_input_metadata[ID]  # from global variable definition
+            input_image = raw_input_images[ID]  # TODO: read from .npy file
+            input_metadata = raw_input_metadata[ID]  # TODO: read from local meta.csv
             image_init[i,] = input_image
             meta_init[i,] = input_metadata
 
@@ -69,12 +75,13 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
     # Model architecture
 
+
 class ConcatProtypeModel():
     def __init__(self):
         self.numExamples = 1000
-        self.width = 50
-        self.height = 50
-        self.numChannels = 7
+        self.width = 500
+        self.height = 500
+        self.numChannels = 8
         self.numMetaFeatures = 5
         self.model = None
         self.history = None
@@ -95,7 +102,7 @@ class ConcatProtypeModel():
         return raw_input_images, raw_input_metadata, labels
 
     def generate_fake_partition_dict(self):
-        idArray = list(range(self.numExamples))
+        idArray = list(range(numExamples))
         ten_percent_split = (-1) * int(len(idArray) / 10)
         twent_percent_split = (-2) * int(len(idArray) / 10)
         test_ids = idArray[ten_percent_split:]
@@ -141,14 +148,15 @@ class ConcatProtypeModel():
         cat_batch_2 = BatchNormalization(name="cat_batch_2")(cat_drop_2)
 
         # output
-        output = Dense(10, activation="softmax", name="output")(cat_batch_2)
+        # output = Dense(10, activation = "softmax", name = "output")(cat_batch_2)
+        output = Dense(1, activation="relu", name="output")(cat_batch_2)
         self.model = keras.Model(inputs=[input_images, input_metadata], outputs=[output], name="concat_model")
 
         # output model summary
         self.model.summary()
 
         # compile model
-        self.model.compile(loss="categorical_crossentropy",
+        self.model.compile(loss="mse",  # used to be categorical_crossentropy
                            optimizer=optimizers.Adam(lr=1e-3, beta_1=0.9, beta_2=0.999),
                            metrics=["accuracy"])
 
@@ -157,11 +165,19 @@ class ConcatProtypeModel():
         self.train_generator = ConcatDataGenerator(partition['train'], labels, **self.genParams)
         self.validation_generator = ConcatDataGenerator(partition['val'], labels, **self.genParams)
 
+        # Define model callbacks
+        checkpoint_cb = callbacks.ModelCheckpoint("vanilla_model.h5")
+        early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        run_logdir = get_run_logdir()
+        tensorboard_cb = callbacks.TensorBoard(run_logdir)
+        csv_cb = callbacks.CSVLogger('training.log', separator=',', append=True)
+
         # train model
         self.history = self.model.fit(x=self.train_generator,
                                       epochs=2,
                                       verbose=1,
                                       validation_data=self.validation_generator,
+                                      callbacks=[checkpoint_cb, early_stopping_tuning_cb, tensorboard_cb, csv_cb],
                                       shuffle=True)
 
     def eval(self):
