@@ -17,8 +17,8 @@ import datetime
 import os
 
 # Define global variables
-AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
+AWS_SERVER_PUBLIC_KEY = "AKIAJW5VF6EYRTAGCZHQ" #TODO: Add after pull
+AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
@@ -117,7 +117,7 @@ def createPartition(s3_client, bucket, session):
     print("Train", len(train_ids))
     print("Val", len(val_ids))
     partition = {'train': train_ids, 'val': val_ids, 'test': test_ids}
-    with open('partition.p', 'wb') as fp:
+    with open('partition_vUpdate.p', 'wb') as fp:
         pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
     return partition
 
@@ -242,11 +242,11 @@ if __name__ == "__main__":
         aws_secret_access_key=AWS_SERVER_SECRET_KEY,
     )
     s3 = session.resource('s3')
-    bucket = s3.Bucket('cs230data')
+    bucket = s3.Bucket('cs230datarev2')
     s3_client = session.client('s3')
 
-    # createPartition(s3_client, bucket, session)
-    create_file_path_directory()
+    createPartition(s3_client, bucket, session)
+    # create_file_path_directory()
 
 
 
