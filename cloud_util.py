@@ -206,11 +206,7 @@ def store_processed_images(maxH, maxW, scaling, completedPath='processed_images/
         aws_file_dict = pickle.load(fp)
 
     # loop through all the images in data set
-    count = 0
     for key, val in aws_file_dict.items():
-        count += 1
-        if count < 416:
-            continue
         # start timer
         start = time.time()
 
