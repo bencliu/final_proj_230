@@ -22,8 +22,8 @@ AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 
 # Import functions
 from imageProcessing import image_process
-from orders import obtain_crop_labels
-import pickle5 as pickle
+# from orders import obtain_crop_labels
+# import pickle5 as pickle
 
 #Import county extraction functions
 from extractCountyData import read_county_GeoJSON, read_county_truth
@@ -155,20 +155,6 @@ def getImageTensors(s3, key):
     decoded = data.get('Body').decode()
     return decoded
 
-"""
-Run and store crop labels to test first county
-"""
-def obtainAndStoreCropLabels():
-    county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
-    county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
-    cropLabels = obtain_crop_labels(county_dict, county_truth)
-
-
-    """# temporarily comment out
-    path = "json_store/labels_all"
-    outfile = open(path, 'wb')
-    pickle.dump(cropLabels, outfile)
-    outfile.close()"""
 
 """
 Function: This is a one-time function to generate a dictionary in the following form dict{key: id, value: aws file path}
@@ -180,7 +166,7 @@ def create_file_path_directory():
         aws_secret_access_key=AWS_SERVER_SECRET_KEY,
     )
     s3 = session.resource('s3')
-    bucket = s3.Bucket('cs230data')
+    bucket = s3.Bucket('cs230datarev2')
 
     # extract all file paths into list
     file_path_dict = {}
@@ -192,7 +178,7 @@ def create_file_path_directory():
             file_path_dict[id] = fileName
             print(fileName)
     # write to pickle file
-    with open('aws_file_dict.p', 'wb') as fp:
+    with open('aws_file_dict_vUpdate.p', 'wb') as fp:
         pickle.dump(file_path_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
 """
@@ -249,24 +235,6 @@ def store_processed_images(maxH, maxW, scaling):
         end = time.time()
         print("Image " + str(count) + " is complete in " + str(end - start))
 
-"""
-Test Function: Store process images
-"""
-def test_store_processed_images():
-
-    # run store process images
-    store_processed_images(maxH=500, maxW=500, scaling=0.04)
-
-    # verify contents of test image
-    with open('json_store/completed_images.pkl', 'rb') as fp:
-        processed_images = pickle.load(fp)
-        print("processed images")
-        print(processed_images)
-    with open('processed_images/vanilla_model/20191012_150709_1049.npy', 'rb') as fp:
-        sample = pickle.load(fp)
-        print(sample.shape)
-
-
 if __name__ == "__main__":
 
     session = boto3.Session(
@@ -278,20 +246,10 @@ if __name__ == "__main__":
     s3_client = session.client('s3')
 
     # createPartition(s3_client, bucket, session)
-    #create_file_path_directory()
-    store_processed_images(maxH=500, maxW=500, scaling=0.04)
-    # stored images complete
+    create_file_path_directory()
 
-    """
-    #obtainAndStoreCropLabels()
-    infile = open("json_store/labels_c1", 'rb')
-    cropLabels = pickle.load(infile)
-    infile.close()
-    
-    print("FIRST IDS", list(cropLabels.keys())[:10])
-    print("FIRST CROP STATS", list(cropLabels.values())[:10])
-    bins_array = truth_data_distribution(filename="json_store/Illinois_Soybeans_Truth_Data.csv", num_classes=10)
-    s3ProcessLabelImage(s3_client, bucket, session, cropLabels, bins_array)"""
+
+
 
 
 
@@ -366,4 +324,37 @@ def test_tif(session):
         plt.imshow(b)
         plt.show()
     print("printing tif was sucessful")
+
+    """
+    Test Function: Store process images
+    """
+
+    def test_store_processed_images():
+        # run store process images
+        store_processed_images(maxH=500, maxW=500, scaling=0.04)
+
+        # verify contents of test image
+        with open('json_store/completed_images.pkl', 'rb') as fp:
+            processed_images = pickle.load(fp)
+            print("processed images")
+            print(processed_images)
+        with open('processed_images/vanilla_model/20191012_150709_1049.npy', 'rb') as fp:
+            sample = pickle.load(fp)
+            print(sample.shape)
+
+
+"""
+Run and store crop labels to test first county
+"""
+def obtainAndStoreCropLabels():
+    county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
+    county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
+    # cropLabels = obtain_crop_labels(county_dict, county_truth)
+
+
+    """# temporarily comment out
+    path = "json_store/labels_all"
+    outfile = open(path, 'wb')
+    pickle.dump(cropLabels, outfile)
+    outfile.close()"""
 
