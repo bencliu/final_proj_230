@@ -184,12 +184,13 @@ def create_file_path_directory():
 """
 Function: Extract images from s3 bucket, perform image processing, write back to the cloud
 """
-def store_processed_images(maxH, maxW, scaling):
+def store_processed_images(maxH, maxW, scaling, completedPath='processed_images/completed_images.pkl',
+                           awsFileDictPath='aws_file_dict.p', s3bucketName='cs230data', imageDirPath='processed_images/vanilla_model/'):
 
     # read back in saved crop list
     completed_images = []
-    if (os.path.isfile('processed_images/completed_images.pkl')):
-        with open('processed_images/completed_images.pkl', 'rb') as fp:
+    if (os.path.isfile(completedPath)):
+        with open(completedPath, 'rb') as fp:
             completed_images = pickle.load(fp)
 
     # start session
@@ -198,10 +199,10 @@ def store_processed_images(maxH, maxW, scaling):
         aws_secret_access_key=AWS_SERVER_SECRET_KEY,
     )
     s3 = session.resource('s3')
-    bucket = s3.Bucket('cs230data')
+    bucket = s3.Bucket(s3bucketName)
 
     # read in pickl file for all the file paths
-    with open('aws_file_dict.p', 'rb') as fp:
+    with open(awsFileDictPath, 'rb') as fp:
         aws_file_dict = pickle.load(fp)
 
     # loop through all the images in data set
@@ -218,17 +219,18 @@ def store_processed_images(maxH, maxW, scaling):
             continue # skip image if already processed
 
         # perform image processing
-        image = image_process(session, 's3://cs230data/' + str(val), maxH, maxW, scaling) # shape (C, H, W)
+        s3BucketStr = 's3://' + s3bucketName + '/'
+        image = image_process(session, s3BucketStr + str(val), maxH, maxW, scaling) # shape (C, H, W)
         image = np.transpose(image, (1, 2, 0))  # shape (H, W, C)
         image = image / 255
 
         # write to local directory
-        with open('processed_images/vanilla_model/' + str(key) + '.npy', 'wb') as fp:
+        with open(imageDirPath + str(key) + '.npy', 'wb') as fp:
             pickle.dump(image, fp)
 
         # store to completed images to local directory
         completed_images.append(key)
-        with open('processed_images/completed_images.pkl', 'wb') as fp:
+        with open(completedPath, 'wb') as fp:
             pickle.dump(completed_images, fp)
 
         # print statements
@@ -245,8 +247,7 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230datarev2')
     s3_client = session.client('s3')
 
-    createPartition(s3_client, bucket, session)
-    # create_file_path_directory()
+
 
 
 
