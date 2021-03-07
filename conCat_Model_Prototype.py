@@ -10,6 +10,7 @@ from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten
 import pickle
 import csv
 import pandas as pd
+from NN_Model import get_run_logdir
 
 class ConcatDataGenerator(keras.utils.Sequence):
     def __init__(self, list_IDs, labels, batch_size, dim, n_channels, n_metaFeatures, n_classes, shuffle=True):
@@ -179,7 +180,7 @@ class ConcatProtypeModel():
         self.validation_generator = ConcatDataGenerator(partition['val'], labels, **self.genParams)
 
         # Define model callbacks
-        checkpoint_cb = callbacks.ModelCheckpoint("vanilla_model.h5")
+        checkpoint_cb = callbacks.ModelCheckpoint("concat_model.h5")
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
