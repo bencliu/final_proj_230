@@ -8,6 +8,8 @@ from tensorflow.keras import optimizers
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
     MaxPooling2D, BatchNormalization, concatenate, Input
 import pickle
+import csv
+import pandas as pd
 
 class ConcatDataGenerator(keras.utils.Sequence):
     def __init__(self, list_IDs, labels, batch_size, dim, n_channels, n_metaFeatures, n_classes, shuffle=True):
@@ -50,7 +52,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
         # Generates data containing batch_size samples | X : (n_samples, *dim, n_channels)
         # Initialization
         image_init = np.empty((self.batch_size, *self.dim, self.n_channels))  # (numSamples, H, W, C)
-        meta_init = np.empty((self.batch_size, self.n_metaFeatures))
+        meta_init = np.empty((self.batch_size, self.n_metaFeatures, 1)) # (fields (5), 1)
         y = np.empty((self.batch_size), dtype=int)  # (numSamples) => Labels
 
         # read in AWS file path dictionary from pickle file
@@ -58,20 +60,31 @@ class ConcatDataGenerator(keras.utils.Sequence):
         with open('aws_file_dict_vUpdate.p.p', 'rb') as fp:
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
+        # read in metadata csv into dataframe
+        df = pd.read_csv('metacopy.csv', sep=',')
+        row4 = df.loc[df['id'] == id]  # Find row with unique id
+        nprow4 = row4.to_numpy()[0]  # Convert to numpy
+        nprow4 = nprow4.reshape(1, 5)
+
         for i, ID in enumerate(list_IDs_temp):
-            # extract raw image and metadata
-            input_image = raw_input_images[ID]  # TODO: read from .npy file
-            input_metadata = raw_input_metadata[ID]  # TODO: read from local meta.csv
+            # extract image
+            input_image = np.load('processed_images/concat_model/' + ID + '.npy', allow_pickle=True)
+
+            # extract metadata
+            dfrow = df.loc[df['id'] == ID]
+            input_metadata = dfrow.to_numpy()[0]
+            input_metadata = input_metadata.reshape(5,1)
+
             image_init[i,] = input_image
             meta_init[i,] = input_metadata
 
             # Store class
-            y[i] = self.labels[ID] - 1  # Store label
+            y[i] = self.labels[ID]  # Store label
 
         # assemble X tuple
         X = (image_init, meta_init)
 
-        return X, keras.utils.to_categorical(y, num_classes=self.n_classes)
+        return X, y #keras.utils.to_categorical(y, num_classes=self.n_classes)
 
     # Model architecture
 
@@ -102,7 +115,7 @@ class ConcatProtypeModel():
         return raw_input_images, raw_input_metadata, labels
 
     def generate_fake_partition_dict(self):
-        idArray = list(range(numExamples))
+        idArray = list(range(self.numExamples))
         ten_percent_split = (-1) * int(len(idArray) / 10)
         twent_percent_split = (-2) * int(len(idArray) / 10)
         test_ids = idArray[ten_percent_split:]
