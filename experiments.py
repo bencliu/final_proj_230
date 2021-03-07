@@ -4,7 +4,8 @@ import pandas as pd
 #Functions for retrieving metadata for a specific itemID
 def retrieveRow():
     df = pd.read_csv('meta.csv', sep=',')
-    row4 = df.loc[df['id'] == "t43"] #Find row with unique id
+    print(df)
+    row4 = df.loc[df['id'] == "20180915_161910_1105"] #Find row with unique id
     nprow4 = row4.to_numpy() #Convert to numpy
     print(nprow4)
 
@@ -25,5 +26,7 @@ def resetCSV():
         #Write initial lfields
         f.write('id, anomalous_pix_perc, clear_percent, cloud_cover, cloud_percent, heavy_haze_percent, origin_x, origin_y, snow_ice_percent, shadow_percent\n')
 
+
+
 if __name__ == "__main__":
-    #resetCSV()
+    retrieveRow()

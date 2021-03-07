@@ -22,7 +22,7 @@ import time
 import re
 import random
 from PIL import Image
-from scipy import sparse
+from scipy import sparse, ndimage
 import boto3
 from sklearn import preprocessing
 
@@ -44,7 +44,7 @@ Function: Image processing from image to tensor
 @return: image np.ndarray with computed vegetation indices with shape (# channels, H, W)
 TODO: Change max height and max width parameters
 """
-def image_process(session, path, maxH, maxW, scaling):
+def image_process(session, path, maxH, maxW, scaling, limitBands=False):
 
     with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
                       aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
@@ -60,6 +60,9 @@ def image_process(session, path, maxH, maxW, scaling):
 
         # split numpy arrays
         b, g, r, n = centered_data
+
+        if limitBands:
+            return np.stack((b, g, r))
 
         # Construct image tensor
         image_tensor = construct_tensors(b, g, r, n)
@@ -89,7 +92,8 @@ def construct_tensors(b, g, r, n):
     ndvi = calculate_NDVI(n, r)
     evi = calculate_EVI(b, r, n)
     msavi = calculate_MSAVI(r, n)
-    t1 = np.stack((b, g, r, n, ndvi, evi, msavi)) # 3 seconds
+    ndvi_nbrs = calculate_neighbors(ndvi)
+    t1 = np.stack((b, g, r, n, ndvi, evi, msavi, ndvi_nbrs)) # 3 seconds
     # t1 = tf.convert_to_tensor(stacked)
 
     """b_t = tf.convert_to_tensor(b) # 0.2 seconds
@@ -102,6 +106,17 @@ def construct_tensors(b, g, r, n):
     t1 = tf.stack([b_t, g_t, r_t, n_t, ndvi, evi, msavi]) # 3 seconds"""
 
     return t1
+
+"""
+Function: Calculates NDVI neighbor band
+@params: np array of shape (H, W)
+@return: np array of shape (H, W)
+"""
+def calculate_neighbors(ndvi):
+    gen_mask = np.ones((3, 3))
+    gen_mask[1, 1] = 0 #Mask out middle pixel
+    neighbor_matrix = ndimage.generic_filter(ndvi, np.nanmean, footprint=gen_mask, mode='constant', cval=np.NaN)
+    return neighbor_matrix
 
 """
 Function: Calculate NDVI (Normalized Difference Vegetation Index)
