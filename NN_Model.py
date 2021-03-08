@@ -17,8 +17,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import kerastuner as kt
 from dataGenerator import DataGenerator
-from cloud_util import s3ProcessLabelImage
-from extractCountyData import truth_data_distribution
 import pickle5 as pickle
 
 
