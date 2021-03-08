@@ -59,7 +59,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
         # read in AWS file path dictionary from pickle file
         aws_file_dict = {}
-        with open('aws_file_dict_vUpdate2.p', 'rb') as fp:
+        with open('data/aws_file_dict_vUpdate2.p', 'rb') as fp:
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # read in metadata csv into dataframe
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     NN.compile()
 
     # Train Model
-    with open('partition_vUpdate2.p', 'rb') as fp:
+    with open('data/partition_vUpdate2.p', 'rb') as fp:
         partition_file = pickle.load(fp)  # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
     with open('json_store/labels_v2/master_label_dict_vUpdate.pkl', 'rb') as fp:
         labels_file = pickle.load(fp)  # dictionary of {'id-1': label 1, ... , 'id-n', label n}

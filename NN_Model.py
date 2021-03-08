@@ -275,7 +275,7 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     # Load in saved data structures
-    with open('partition.p', 'rb') as fp:
+    with open('data/partition.p', 'rb') as fp:
         partition = pickle.load(fp) # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
     with open('json_store/labels/master_label_dict_binned.pkl', 'rb') as fp:
         labels = pickle.load(fp) # dictionary of {'id-1': label 1, ... , 'id-n', label n}
