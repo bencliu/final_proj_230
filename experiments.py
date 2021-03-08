@@ -7,7 +7,8 @@ def retrieveRow(id="20181021_162348_102e"):
     print(df)
     row4 = df.loc[df['id'] == id] #Find row with unique id
     nprow4 = row4.to_numpy()[0] #Convert to numpy
-    print(nprow4)
+    nprow4 = nprow4.reshape(1, 5)
+    print(nprow4.shape)
 
 #Function for writing specific row to CSV
 def testWriteRow():

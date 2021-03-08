@@ -108,14 +108,14 @@ def export_classification_labels(completed_fips_list_file_path: str, num_classes
 
     # read in all county label dictionary files
     master_label_dict = {}
-    for fipCode in completed_fips:
+    for fipCodeYear in completed_fips:
         county_label_dict = {}
-        with open('json_store/labels/' + str(fipCode) + '.pkl', 'rb') as fp:
+        with open('json_store/labels_v2/' + str(fipCodeYear) + '.pkl', 'rb') as fp:
             county_label_dict = pickle.load(fp)
             master_label_dict = {**master_label_dict, **county_label_dict}
     print("----------Finished reading in .pkl files----------")
 
-    # Perform the quantile cut
+    """# Perform the quantile cut
     values = list(master_label_dict.values()) # extract values from
     np.random.seed(42)
     test_list_rnd = np.array(values) + np.random.random(len(values))  # add noise to data
@@ -128,13 +128,13 @@ def export_classification_labels(completed_fips_list_file_path: str, num_classes
     # bin the original dictionary
     for key, val in master_label_dict.items():
         [cropLabel] = bin_truth_data(np.array([val]), bins)
-        master_label_dict[key] = cropLabel  # convert to label
+        master_label_dict[key] = cropLabel  # convert to label"""
 
     # Write to pickle file
-    with open('json_store/labels/master_label_dict_binned.pkl', 'wb') as fp:
+    with open('json_store/labels_v2/master_label_dict.pkl', 'wb') as fp:
         pickle.dump(master_label_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
     print("----------Classification Label Dictionary Complete----------")
-    print("Navigate to json_store/labels/master_label_dict_binned.pkl for completed product")
+    print("Navigate to json_store/labels_v2/master_label_dict_binned.pkl for completed product")
 
 if __name__ == "__main__":
     
@@ -145,7 +145,9 @@ if __name__ == "__main__":
     # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
 
     # Obtain classification labels from truth data
-    export_classification_labels(completed_fips_list_file_path = 'json_store/labels/completed_fips.pkl', num_classes = 10)
+    export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
+
+
 
 """
 Archive Functions ===============================================================
