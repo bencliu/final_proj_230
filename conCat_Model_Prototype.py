@@ -7,7 +7,7 @@ from tensorflow.keras import callbacks
 from tensorflow.keras import optimizers
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
     MaxPooling2D, BatchNormalization, concatenate, Input
-import pickle
+import pickle5 as pickle
 import csv
 import pandas as pd
 from NN_Model import get_run_logdir
@@ -62,7 +62,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # read in metadata csv into dataframe
-        df = pd.read_csv('metacopy.csv', sep=',')
+        df = pd.read_csv('meta.csv', sep=',')
 
         for i, ID in enumerate(list_IDs_temp):
             # extract image
@@ -70,10 +70,14 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
             # extract metadata
             dfrow = df.loc[df['id'] == ID]
-            input_metadata = dfrow.to_numpy()[0]
+            print(dfrow)
+            input_metadata = dfrow.to_numpy()
+            print(len(input_metadata))
+            input_metadata = dfrow.to_numpy()[0] if (len(input_metadata) != 1) else dfrow.to_numpy()
+            print(input_metadata)
             input_metadata = np.arange(5).reshape(1, 5)
             input_metadata = input_metadata[0][1:]
-            input_metadata = input_metadata.reshape(1, 4)
+            input_metadata = input_metadata.reshape(4, 1)
 
             image_init[i,] = input_image
             meta_init[i,] = input_metadata
