@@ -62,7 +62,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # read in metadata csv into dataframe
-        df = pd.read_csv('meta.csv', sep=',')
+        df = pd.read_csv('metadata/meta.csv', sep=',')
 
         for i, ID in enumerate(list_IDs_temp):
             # extract image
