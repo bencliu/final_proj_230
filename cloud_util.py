@@ -15,6 +15,8 @@ import io
 from extractCountyData import truth_data_distribution, bin_truth_data
 import datetime
 import os
+import json
+import csv
 
 # Define global variables
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
@@ -24,6 +26,7 @@ AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 from imageProcessing import image_process
 # from orders import obtain_crop_labels
 import pickle5 as pickle
+import pandas as pd
 
 #Import county extraction functions
 from extractCountyData import read_county_GeoJSON, read_county_truth
@@ -99,14 +102,12 @@ def createPartition(s3_client, bucket, session):
     for obj in bucket.objects.all():
         fileName = obj.key
         if fileName.endswith('AnalyticMS_clip.tif'):
-            print("PROCESSING REAL IMAGE")
             #Obtain crop label for image
             idSplit1 = fileName.split("Scene4Band/")[1] #After "Scene4Band"
             id = idSplit1.split("_3B_AnalyticMS_")[0] #Before "AnalyticMS"
             idArray = np.append(idArray, id)
     # Partition: Dictionary of val, test, train keys to [Id List] containing relevant ids
     # Label Dictionary: Key is ID, Value is crop label
-    print(idArray)
     np.random.shuffle(idArray)
     ten_percent_split = (-1) * int(len(idArray) / 10)
     twent_percent_split = (-2) * int(len(idArray) / 10)
@@ -120,6 +121,45 @@ def createPartition(s3_client, bucket, session):
     with open('partition_vUpdate.p', 'wb') as fp:
         pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
     return partition
+
+#Create metadata CSV (Generate from images in the s3 buckets)
+def createMetadata():
+    session = boto3.Session(
+        aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+        aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+    )
+    s3 = session.resource('s3')
+    bucket = s3.Bucket('cs230datarev2')
+    s3_client = session.client('s3')
+    for obj in bucket.objects.all():
+        fileName = obj.key
+        if fileName.endswith('metadata.json'):
+            content_object = s3.Object('cs230datarev2', fileName)
+            file_content = content_object.get()['Body'].read().decode('utf-8')
+            json_content = json.loads(file_content)
+            id = json_content['id']
+            json_content = json_content['properties']
+
+            anom_pix = json_content['anomalous_pixels']
+            cloud_cover = json_content['cloud_cover']
+            origin_x = json_content['origin_x']
+            origin_y = json_content['origin_y']
+            time = json_content['acquired']
+            strip_id = json_content['strip_id']
+
+            fieldnames = ['id', 'anomalous_pix_perc', 'cloud_cover',
+                          'origin_x', 'origin_y', 'acquired', 'strip_id']
+            with open(r'metadata/metadata.csv', 'a', newline='') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writerow(
+                    {'id': id, 'anomalous_pix_perc': anom_pix, 'cloud_cover': cloud_cover,
+                     'origin_x': origin_x, 'origin_y': origin_y, 'acquired': time, 'strip_id': strip_id})
+
+
+
+
+
+
 
 #Writes master example dictionary to npy file
 def writeToNpy(path, dictionary):
@@ -246,12 +286,14 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230datarev2')
     s3_client = session.client('s3')
 
+    createMetadata()
+
     # create_file_path_directory()
-    # createPartition(s3_client, bucket, session)
-    # create_file_path_directory()
-    store_processed_images(maxH=500, maxW=500, scaling=0.04, completedPath='processed_images/completed_images_v2.pkl',
-                           awsFileDictPath='aws_file_dict_vUpdate.p', s3bucketName='cs230datarev2',
-                           imageDirPath='processed_images/concat_model/')
+    #createPartition(s3_client, bucket, session)
+    #create_file_path_directory()
+    #store_processed_images(maxH=500, maxW=500, scaling=0.04, completedPath='processed_images/completed_images_v2.pkl',
+                           #awsFileDictPath='aws_file_dict_vUpdate.p', s3bucketName='cs230datarev2',
+                           #imageDirPath='processed_images/concat_model/')
 
 
 
