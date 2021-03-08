@@ -58,7 +58,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
         # read in AWS file path dictionary from pickle file
         aws_file_dict = {}
-        with open('aws_file_dict_vUpdate.p.p', 'rb') as fp:
+        with open('aws_file_dict_vUpdate2.p', 'rb') as fp:
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # read in metadata csv into dataframe
@@ -180,11 +180,11 @@ class ConcatProtypeModel():
         self.validation_generator = ConcatDataGenerator(partition['val'], labels, **self.genParams)
 
         # Define model callbacks
-        checkpoint_cb = callbacks.ModelCheckpoint("concat_model.h5")
+        checkpoint_cb = callbacks.ModelCheckpoint("concat_model_results/concat_model.h5")
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-        csv_cb = callbacks.CSVLogger('training.log', separator=',', append=True)
+        csv_cb = callbacks.CSVLogger('concat_model_results/training.log', separator=',', append=True)
 
         # train model
         self.history = self.model.fit(x=self.train_generator,
