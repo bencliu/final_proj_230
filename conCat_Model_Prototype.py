@@ -128,7 +128,7 @@ class ConcatProtypeModel():
     def compile(self):
         # inputs
         input_images = Input(shape=(self.height, self.width, self.numChannels), name="input_images")
-        input_metadata = Input(shape=(self.numMetaFeatures), name="input_metadata")
+        input_metadata = Input(shape=(self.numMetaFeatures, 1), name="input_metadata")
         print("input_image shape per batch:" + str(input_images.get_shape()))
         print("input_metadata shape per batch:" + str(input_metadata.get_shape()))
 
