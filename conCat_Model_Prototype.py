@@ -54,7 +54,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
         # Initialization
         image_init = np.empty((self.batch_size, *self.dim, self.n_channels))  # (numSamples, H, W, C)
         meta_init = np.empty((self.batch_size, self.n_metaFeatures, 1)) # (fields (5), 1)
-        y = np.empty((self.batch_size), dtype=int)  # (numSamples) => Labels
+        y = np.empty((self.batch_size), dtype=float)  # (numSamples) => Labels
 
         # read in AWS file path dictionary from pickle file
         aws_file_dict = {}
@@ -62,7 +62,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # read in metadata csv into dataframe
-        df = pd.read_csv('meta.csv', sep=',')
+        df = pd.read_csv('metadata/metadata.csv', sep=',')
 
         for i, ID in enumerate(list_IDs_temp):
             # extract image
@@ -70,11 +70,8 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
             # extract metadata
             dfrow = df.loc[df['id'] == ID]
-            print(dfrow)
             input_metadata = dfrow.to_numpy()
-            print(len(input_metadata))
             input_metadata = dfrow.to_numpy()[0] if (len(input_metadata) != 1) else dfrow.to_numpy()
-            print(input_metadata)
             input_metadata = np.arange(5).reshape(1, 5)
             input_metadata = input_metadata[0][1:]
             input_metadata = input_metadata.reshape(4, 1)
@@ -83,8 +80,8 @@ class ConcatDataGenerator(keras.utils.Sequence):
             meta_init[i,] = input_metadata
 
             # Store class
-            y[i] = self.labels[ID]  # Store label
-
+            y[i] = self.labels[ID] + np.random.normal(0, 0.001)  # Store label
+            
         # assemble X tuple
         X = (image_init, meta_init)
 
@@ -104,7 +101,7 @@ class ConcatProtypeModel():
         self.validation_generator = None
         self.train_generator = None
         self.genParams = {'dim': (self.width, self.height),
-                          'batch_size': 16,
+                          'batch_size': 24,
                           'n_classes': 10, # not needed anymore
                           'n_channels': self.numChannels,
                           'n_metaFeatures': self.numMetaFeatures,
@@ -174,7 +171,7 @@ class ConcatProtypeModel():
         # compile model
         self.model.compile(loss="mse",  # used to be categorical_crossentropy
                            optimizer=optimizers.Adam(lr=1e-3, beta_1=0.9, beta_2=0.999),
-                           metrics=["accuracy"])
+                           metrics=[tf.keras.metrics.RootMeanSquaredError(),tf.keras.metrics.MeanAbsolutePercentageError()])
 
     def train(self, partition, labels):
         # Generators
@@ -183,7 +180,7 @@ class ConcatProtypeModel():
 
         # Define model callbacks
         checkpoint_cb = callbacks.ModelCheckpoint("concat_model_results/concat_model.h5")
-        early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
         csv_cb = callbacks.CSVLogger('concat_model_results/training.log', separator=',', append=True)
