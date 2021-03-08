@@ -126,7 +126,7 @@ class vnet_model():
                                  objective='val_accuracy',
                                  max_epochs=100,
                                  factor=3,
-                                 directory='json-store',
+                                 directory='json_store',
                                  project_name='res_net')
 
             # Search for Optimal Hyperparameters: TODO, Fix this tuning procedure
