@@ -4,7 +4,7 @@ import pickle
 
 #Functions for retrieving metadata for a specific itemID
 def retrieveRow(id="20181021_162348_102e"):
-    df = pd.read_csv('metacopy.csv', sep=',')
+    df = pd.read_csv('metadata/metacopy.csv', sep=',')
     print(df)
     row4 = df.loc[df['id'] == id] #Find row with unique id
     nprow4 = row4.to_numpy()[0] #Convert to numpy
@@ -15,7 +15,7 @@ def retrieveRow(id="20181021_162348_102e"):
 def testWriteRow():
     fieldnames = ['id', 'anomalous_pix_perc', 'clear_percent', 'cloud_cover', 'cloud_percent', 'heavy_haze_percent',
                   'origin_x', 'origin_y', 'snow_ice_percent', 'shadow_percent']
-    with open(r'metacopy.csv', 'a', newline='') as csvfile:
+    with open(r'metadata/metacopy.csv', 'a', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writerow(
             {'id':"t43", 'anomalous_pix_perc': 1, 'clear_percent':  2.0, 'cloud_cover': "test",
@@ -34,13 +34,13 @@ def testWriteRow2():
 
 #Resets CSV with fields
 def resetCSV():
-    with open(r'metacopy.csv', 'w') as f:
+    with open(r'metadata/metacopy.csv', 'w') as f:
         #Write initial lfields
         f.write('id, anomalous_pix_perc, clear_percent, cloud_cover, cloud_percent, heavy_haze_percent, origin_x, origin_y, snow_ice_percent, shadow_percent\n')
 
 
 def fetchID(id):
-    df = pd.read_csv('metacopy.csv', sep=',')
+    df = pd.read_csv('metadata/metacopy.csv', sep=',')
     #row = df.loc[df['id'] == id]  # Find row with unique id
     #row = row.to_numpy()[0]  # Convert to numpy
     #nprow4 = row.reshape(1, 5)
@@ -48,7 +48,7 @@ def fetchID(id):
 
 #Change first row of metadatatest.csv file
 def changeFirstRow():
-    df = pd.read_csv("metacopy.csv")
+    df = pd.read_csv("metadata/metacopy.csv")
     print(df.at[0, "anomalous_pix_perc"])
     print(df.at[0, "cloud_cover"])
     print(df.at[0, "origin_x"])

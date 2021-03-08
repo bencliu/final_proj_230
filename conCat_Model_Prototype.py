@@ -5,6 +5,7 @@ import numpy as np
 from tensorflow.keras import layers
 from tensorflow.keras import callbacks
 from tensorflow.keras import optimizers
+from tensorflow.keras import metrics
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
     MaxPooling2D, BatchNormalization, concatenate, Input
 import pickle5 as pickle
@@ -171,7 +172,7 @@ class ConcatProtypeModel():
         # compile model
         self.model.compile(loss="mse",  # used to be categorical_crossentropy
                            optimizer=optimizers.Adam(lr=1e-3, beta_1=0.9, beta_2=0.999),
-                           metrics=[tf.keras.metrics.RootMeanSquaredError(),tf.keras.metrics.MeanAbsolutePercentageError()])
+                           metrics=[metrics.MeanSquaredError(), metrics.RootMeanSquaredError(),metrics.MeanAbsolutePercentageError()])
 
     def train(self, partition, labels):
         # Generators

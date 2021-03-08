@@ -304,7 +304,7 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
 
                 fieldnames = ['id', 'anomalous_pix_perc', 'cloud_cover',
                               'origin_x', 'origin_y']
-                with open(r'meta.csv', 'a', newline='') as csvfile:
+                with open(r'metadata/meta.csv', 'a', newline='') as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writerow(
                         {'id': itemid, 'anomalous_pix_perc': anomalous_pix_perc, 'cloud_cover': cloud_cover,
