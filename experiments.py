@@ -1,6 +1,13 @@
 import csv
 import pandas as pd
 import pickle
+import rasterio
+from imageProcessing import standardize_image_np, construct_tensors
+from rasterio.enums import Resampling
+import numpy as np
+from matplotlib import pyplot as plt
+from PIL import Image
+from imageProcessing import visualize_image, calculate_neighbors
 
 #Functions for retrieving metadata for a specific itemID
 def retrieveRow(id="20181021_162348_102e"):
@@ -56,5 +63,53 @@ def changeFirstRow():
     print(df)
     #df.to_csv("metacopy.csv", index=False)
 
+def imageMosaicGen(maxH, maxW, withScale=False, scale=1.0):
+    # Call image processing on downloaded item
+    sat_data = rasterio.open("../ArchiveData/planet_sample1.tiff")
+    image = sat_data.read(
+        out_shape=(int(sat_data.height * scale), int(sat_data.width * scale)),
+        resampling=Resampling.nearest
+    ) \
+        if withScale else sat_data.read()
+
+    # Process and construct image
+    # centered_data = standardize_image_np(image, maxH, maxW)
+    b, g, r, n = image
+    print("Start constructing tensors")
+    image_tensor = construct_tensors(b, g, r, n)
+    print("Finished constructing tensor")
+
+    # Analyze image + store
+    with open("../ArchiveData/false_nbrs_scale" + '.npy', 'wb') as fp:
+        pickle.dump(image_tensor, fp)
+
+def analyzeImageMosaic(npyPath):
+    image = np.load(npyPath, allow_pickle=True)
+    image = np.transpose(image, (1, 2, 0))
+
+    #RGB Image
+    """
+    rgbTemplate = np.flip(image[:,:,:3], axis=2)
+    plt.imshow(rgbTemplate.astype('uint8'))
+    plt.xlabel("Latitudinal Pixel")
+    plt.ylabel("Longitudinal Pixel")
+    plt.show()
+    """
+
+    #NDVI, EVI, MSAVI, NDVI_NBRS
+    #for index in range(3, 7):
+    im = image[:,:,4:5]
+    nbrs = calculate_neighbors(im)
+    displayGreen(nbrs)
+
+def displayGreen(image):
+    plt.imshow(image.astype('uint8'))
+    plt.xlabel("Latitudinal Pixel")
+    plt.ylabel("Longitudinal Pixel")
+    plt.show()
+
+
 if __name__ == "__main__":
-    testWriteRow2()
+    #imageMosaicGen(maxH=7000, maxW=7000)
+    analyzeImageMosaic("../ArchiveData/false_nbrs_scale" + '.npy')
+    #visualize_image("../ArchiveData/planet_sample1.tiff")
