@@ -3,4 +3,5 @@ testIgnore/
 data/
 vanilla_model.h5
 processed_images/
+concat_model_results/concat_model.h5
 experiments.py

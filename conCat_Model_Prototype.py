@@ -82,6 +82,8 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
             # Store class
             y[i] = self.labels[ID] + np.random.normal(0, 0.001)  # Store label
+            print(self.labels[ID])
+            print(y[i])
             
         # assemble X tuple
         X = (image_init, meta_init)
@@ -102,7 +104,7 @@ class ConcatProtypeModel():
         self.validation_generator = None
         self.train_generator = None
         self.genParams = {'dim': (self.width, self.height),
-                          'batch_size': 24,
+                          'batch_size': 1,
                           'n_classes': 10, # not needed anymore
                           'n_channels': self.numChannels,
                           'n_metaFeatures': self.numMetaFeatures,
