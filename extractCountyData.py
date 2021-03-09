@@ -17,6 +17,7 @@ import pandas as pd
 import numpy as np
 import math
 import pickle
+import locale
 
 """
 Function: Extracts the county FIPS code and polygon coordinates into a dictionary
@@ -124,6 +125,30 @@ def read_brazil_regional_truth():
     file.close()
 
 """
+Function: Extract county areas
+"""
+def read_illinois_county_area():
+
+    # extract excel contents to lists
+    county_areas = {}
+    with open('json_store/Illinois_County_Areas.csv', 'r') as file:
+        reader = csv.reader(file, delimiter=',', skipinitialspace=True)
+        next(reader)
+        for row in reader:
+            fipCode = int(row[1])
+            areaString = row[-2]
+            extractedString = re.search('mi(.*)km2', areaString)
+            isolatedString = extractedString.group(1)[1:]
+            locale.setlocale( locale.LC_ALL, 'en_US.UTF-8' )
+            rawArea = locale.atoi(isolatedString)
+            area = rawArea * 1000000; # convert from km^2 to m^2
+            county_areas[fipCode] = area
+    file.close()
+
+    with open('data/county_areas.p', 'wb') as fp:
+        pickle.dump(county_areas, fp)
+
+"""
 Function: Extracts truth from municipal agricultural production website (SIDRA)
 Source: https://sidra.ibge.gov.br/tabela/1612
 @Params: None
@@ -219,7 +244,10 @@ if __name__ == "__main__":
 
     # Extract brazil regional yields
     # read_brazil_regional_truth()
-    read_brazil_regional_truth_v2()
+    # read_brazil_regional_truth_v2()
+
+    # extract illinois area dictionary
+    read_illinois_county_area()
 
     # Obtain classification labels from truth data
     # export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
