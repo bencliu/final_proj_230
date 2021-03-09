@@ -1,0 +1,8 @@
+test ignore
+
+"""
+Commit any changes that you need to fix/change.
+Run this command: git rm -r --cached . (which removes everything from the git index in order to refresh your git repository)
+Then run this command: git add . (to add everything back to the repo)
+Finally, commit these changes using git commit -m ".gitignore Fixed"
+"""
