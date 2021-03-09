@@ -80,7 +80,7 @@ def imageMosaicGen(maxH, maxW, withScale=False, scale=1.0):
     print("Finished constructing tensor")
 
     # Analyze image + store
-    with open("../ArchiveData/false_nbrs_scale" + '.npy', 'wb') as fp:
+    with open("../ArchiveData/scaled" + '.npy', 'wb') as fp:
         pickle.dump(image_tensor, fp)
 
 def analyzeImageMosaic(npyPath):
@@ -96,10 +96,10 @@ def analyzeImageMosaic(npyPath):
     plt.show()
     """
 
+
     #NDVI, EVI, MSAVI, NDVI_NBRS
-    #for index in range(3, 7):
     im = image[:,:,4:5]
-    nbrs = calculate_neighbors(im)
+    nbrs = calculate_neighbors(im[:,:,0])
     displayGreen(nbrs)
 
 def displayGreen(image):
@@ -110,6 +110,6 @@ def displayGreen(image):
 
 
 if __name__ == "__main__":
-    #imageMosaicGen(maxH=7000, maxW=7000)
-    analyzeImageMosaic("../ArchiveData/false_nbrs_scale" + '.npy')
+    #imageMosaicGen(maxH=7000, maxW=7000, withScale=True, scale=0.04)
+    analyzeImageMosaic("../ArchiveData/scaled" + '.npy')
     #visualize_image("../ArchiveData/planet_sample1.tiff")

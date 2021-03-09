@@ -222,6 +222,46 @@ def create_file_path_directory():
         pickle.dump(file_path_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
 """
+Function: Analyze all images in AWS and compute areas based on non-zero pixels
+"""
+def compute_image_areas():
+    session = boto3.Session(
+        aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+        aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+    )
+    s3 = session.resource('s3')
+    bucket = s3.Bucket('cs230datarev2')
+
+    # extract all file paths into list
+    id_area_dict = {}
+    count = 0
+    for obj in bucket.objects.all():
+        fileName = obj.key
+        if fileName.endswith('AnalyticMS_clip.tif'):
+            idSplit1 = fileName.split("Scene4Band/")[1]  # After "Scene4Band"
+            id = idSplit1.split("_3B_AnalyticMS_")[0]  # Before "AnalyticMS"
+
+            #Read in numpy array TODONOW
+            with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+                              aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+                              aws_session=session):
+                bucket = 's3://' + 'cs230datarev2' + '/'
+                path = bucket + str(fileName)
+                data = rasterio.open(path)
+                image = data.read()
+                b, g, r, n = image
+                print("created image")
+                nonzero_count = np.count_nonzero(g)
+                print("Counted nonzero")
+                id_area_dict[id] = nonzero_count * 9 #Each pixel is 9m^2
+                print("IMAGE ADDED", count)
+                count += 1
+
+    # write to pickle file
+    with open('data/aws_id_areas.p', 'wb') as fp:
+        pickle.dump(id_area_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
+
+"""
 Function: Extract images from s3 bucket, perform image processing, write back to the cloud
 """
 def store_processed_images(maxH, maxW, scaling, completedPath='processed_images/completed_images.pkl',
@@ -286,7 +326,9 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230datarev2')
     s3_client = session.client('s3')
 
-    createMetadata()
+    compute_image_areas()
+
+    # createMetadata()
 
     # create_file_path_directory()
     #createPartition(s3_client, bucket, session)
@@ -397,7 +439,6 @@ def obtainAndStoreCropLabels():
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     # cropLabels = obtain_crop_labels(county_dict, county_truth)
-
 
     """# temporarily comment out
     path = "json_store/labels_all"
