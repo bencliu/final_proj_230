@@ -132,7 +132,7 @@ class vnet_model():
                                  project_name=modelName)
 
             # Search for Optimal Hyperparameters: TODO, Fix this tuning procedure
-            tuner.search(self.train_generator, validation_data=self.validation_generator, epochs=20,
+            tuner.search(self.train_generator, validation_data=self.validation_generator, epochs=10,
                          callbacks=[early_stopping_tuning_cb])
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
 
