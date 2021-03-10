@@ -17,15 +17,9 @@ import csv
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
-<<<<<<< HEAD
-PLANET_API_KEY = '3b5b83781d7d443e9a21b943c913c280'
-AWS_SERVER_PUBLIC_KEY = "AKIAJW5VF6EYRTAGCZHQ" #TODO: Add after pull
-AWS_SERVER_SECRET_KEY = "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" #TODO: Add after pull
-=======
 PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
 AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
->>>>>>> 9c4fae964b0801febf06d474e79652df1d95d73a
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
 headers = {'content-type': 'application/json'}
 
@@ -221,21 +215,12 @@ def extract_raw_labels(county_dictionary, county_truth):
 
     # read back in saved crop list
     completed_fips = []
-<<<<<<< HEAD
     if (os.path.isfile('json_store/labels_v3/2019_completed_fips.pkl')):
         with open('json_store/labels_v3/2019_completed_fips.pkl', 'rb') as fp:
             completed_fips = pickle.load(fp)
 
     # define the range of years to look at
     yearRange = [2019]
-=======
-    if (os.path.isfile('json_store/labels_v3/2018_completed_fips.pkl')):
-        with open('json_store/labels_v3/2018_completed_fips.pkl', 'rb') as fp:
-            completed_fips = pickle.load(fp)
-
-    # define the range of years to look at
-    yearRange = [2018]
->>>>>>> 9c4fae964b0801febf06d474e79652df1d95d73a
 
     #Loop through counties
     for year in yearRange:
@@ -261,11 +246,7 @@ def extract_raw_labels(county_dictionary, county_truth):
 
             # store completed FIPS
             completed_fips.append(str(fipCode) + "_" + str(year))
-<<<<<<< HEAD
             with open('json_store/labels_v3/2019_completed_fips.pkl', 'wb') as fp:
-=======
-            with open('json_store/labels_v3/2018_completed_fips.pkl', 'wb') as fp:
->>>>>>> 9c4fae964b0801febf06d474e79652df1d95d73a
                 pickle.dump(completed_fips, fp)
 
             # output timed data
