@@ -81,7 +81,7 @@ class vnet_model():
         d3 = keras.layers.Dropout(0.5)(fc3)
         b3 = keras.layers.BatchNormalization()(d3)
         final = keras.layers.Dense(1, activation="relu")(b3)
-        self.model = tf.keras.models.Model(inputs=resModel.input, outputs=final)
+        self.model = tf.keras.models.Model(inputs=model.input, outputs=final)
 
         # Hyperparameters
         hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
@@ -105,12 +105,12 @@ class vnet_model():
 
         # Define model callbacks
 
-        checkpoint_cb = callbacks.ModelCheckpoint("resnet.h5")
+        checkpoint_cb = callbacks.ModelCheckpoint("vgg.h5")
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-        early_stopping_training_cb = callbacks.EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
+        early_stopping_training_cb = callbacks.EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-        csv_cb = callbacks.CSVLogger('my_logs/res_net/training.log', separator=',', append=True)
+        csv_cb = callbacks.CSVLogger('my_logs/vgg/training.log', separator=',', append=True)
 
 
         # Tuning
@@ -123,11 +123,11 @@ class vnet_model():
             self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)
             self.validation_generator = DataGenerator(partition['val'], labels, **self.genParams)
             tuner = kt.Hyperband(self.compile,
-                                 objective='val_accuracy',
+                                 objective='mean_squared_error',
                                  max_epochs=100,
                                  factor=3,
                                  directory='json_store',
-                                 project_name='res_net')
+                                 project_name='vgg')
 
             # Search for Optimal Hyperparameters: TODO, Fix this tuning procedure
             tuner.search(self.train_generator, validation_data=self.validation_generator, epochs=20,
@@ -175,4 +175,15 @@ def test_vnet_fake():
 
 if __name__ == "__main__":
     print("STARTING...")
-    #test_vnet_fake
+    model = vnet_model(width=500, height=500, imageStorePath="processed_images/concat_model") #TODONOW
+    hp = kt.HyperParameters()
+    model.compile(hp=hp, useRes=False)
+
+    #Assign labels and partition
+    # Load in saved data structures
+    with open('data/partition_vUpdate2.p', 'rb') as fp:
+        partition = pickle.load(fp)  # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
+    with open('json_store/labels_v2/master_label_dict_vUpdate.pkl', 'rb') as fp:
+        labels = pickle.load(fp)  # dictionary of {'id-1': label 1, ... , 'id-n', label n}
+
+    model.train(labels=labels, partition=partition, hp=hp)
