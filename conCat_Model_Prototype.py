@@ -241,5 +241,5 @@ if __name__ == "__main__":
         labels_file = pickle.load(fp)  # dictionary of {'id-1': label 1, ... , 'id-n', label n}
     NN.train(partition= partition_file, labels= labels_file)
 
-    # output message
+   # output message
     print("------------RUN IS COMPELTE------------")

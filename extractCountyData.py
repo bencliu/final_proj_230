@@ -18,6 +18,9 @@ import numpy as np
 import math
 import pickle
 import locale
+import matplotlib.pyplot as plot
+import pprint
+import unidecode
 
 """
 Function: Extracts the county FIPS code and polygon coordinates into a dictionary
@@ -182,6 +185,85 @@ def read_brazil_regional_truth_v2():
     print(mesoregional_truth_yields)
 
 """
+Function: Extracts truth from municipal agricultural production website (SIDRA)
+Source: https://sidra.ibge.gov.br/tabela/1612
+@Params: None
+@Return dict[Region name: dict[year, yield] 
+"""
+def read_brazil_regional_truth_v3():
+
+    # extract excel contents to lists
+    xl_file = pd.read_excel('json_store/brazil_data/brazil_muni_yields.xlsx', engine='openpyxl', skiprows=4, skipfooter=1)
+    cols = xl_file.columns.tolist()
+    raw_munis = xl_file[cols[0]].tolist()
+    raw17 = xl_file[cols[1]].tolist()
+    raw18 = xl_file[cols[2]].tolist()
+    raw19 = xl_file[cols[3]].tolist()
+
+    # extract contents for mato grosso
+    totals = [] # for debug purposes
+    tobush = 1 / 67.25
+    filtered_muni_truth_yields ={}
+    filtered_munis = []
+    for i in range(len(raw_munis)):
+        if raw_munis[i][raw_munis[i].find("(") + 1:raw_munis[i].find(")")] == "MT":
+            if isinstance(raw17[i], str) or isinstance(raw18[i], str) or isinstance(raw19[i], str):
+                continue  # skip if municipality if missing yields
+            totals.append(raw17[i] + raw18[i] + raw19[i])  # for debug purposes
+            if raw17[i]+raw18[i]+raw19[i] <= 10180:
+                continue # filter out
+            muni = raw_munis[i].split(" (")[0].upper()
+            muni = unidecode.unidecode(muni) # remove accents and special characters
+            filtered_muni_truth_yields[muni] = {2017: raw17[i] * tobush,
+                                                     2018: raw18[i] * tobush,
+                                                     2019: raw19[i] * tobush}
+            filtered_munis.append(muni)
+
+    """plot.hist(totals, density=True, bins=100)
+    plot.show()"""
+    pprint.pprint(filtered_muni_truth_yields)
+    print(len(filtered_muni_truth_yields.keys()))
+
+    # Write to pickle file
+    with open('json_store/brazil_data/filtered_brazil_yields.p', 'wb') as fp:
+        pickle.dump(filtered_muni_truth_yields, fp)
+    with open('json_store/brazil_data/filtered_brazil_munis.p', 'wb') as fp:
+        pickle.dump(filtered_munis, fp)
+
+"""
+Function: Extract GEOJSON of counties
+"""
+
+def extract_brazil_geojson():
+
+    # extract filtered list of munis
+    with open("json_store/brazil_data/filtered_brazil_munis.p", 'rb') as fp:
+        filtered_munis = pickle.load(fp)
+
+    # Read in GeoJSON file
+    filename = "/Users/christopheryu/Desktop/brazil_municipalities_1991_mit_geo_web/processed/05_malhamunicipal1991_20.json"
+    with open(filename) as f:
+        gj = geojson.load(f)
+
+    # Create Dictionary of FIP codes and coordinates
+    muni_polygons = {}
+    count = 0
+    debug = []
+    for i in range(0, len(gj['features'])):
+
+        # Extract FIPS code from Feature Collection Descriptions
+        properties = gj['features'][i]['properties']
+        muni_name = gj['features'][i]['properties']['NOMEMUNICP']
+        if muni_name in filtered_munis:
+            debug.append(muni_name)
+            count += 1
+
+    print(count)
+    print(len(filtered_munis))
+
+
+
+"""
 Function: This function bins the truth data based on the classification split
 @Params: truth_data of shape (# of examples, 1), binned ranges np.array
 @Returns: array of shape (# of examples, 1) binned into the given number of classes
@@ -244,10 +326,13 @@ if __name__ == "__main__":
 
     # Extract brazil regional yields
     # read_brazil_regional_truth()
-    # read_brazil_regional_truth_v2()
+    read_brazil_regional_truth_v3()
+
+    # Extract brazil geojson
+    extract_brazil_geojson()
 
     # extract illinois area dictionary
-    read_illinois_county_area()
+    # read_illinois_county_area()
 
     # Obtain classification labels from truth data
     # export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
