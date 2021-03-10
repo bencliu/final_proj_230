@@ -5,9 +5,10 @@ import numpy as np
 from tensorflow.keras import layers
 from tensorflow.keras import callbacks
 from tensorflow.keras import optimizers
+from tensorflow.keras import metrics
 from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Flatten, Dense, TimeDistributed, Lambda, \
     MaxPooling2D, BatchNormalization, concatenate, Input
-import pickle
+import pickle5 as pickle
 import csv
 import pandas as pd
 from NN_Model import get_run_logdir
@@ -54,18 +55,15 @@ class ConcatDataGenerator(keras.utils.Sequence):
         # Initialization
         image_init = np.empty((self.batch_size, *self.dim, self.n_channels))  # (numSamples, H, W, C)
         meta_init = np.empty((self.batch_size, self.n_metaFeatures, 1)) # (fields (5), 1)
-        y = np.empty((self.batch_size), dtype=int)  # (numSamples) => Labels
+        y = np.empty((self.batch_size), dtype=float)  # (numSamples) => Labels
 
         # read in AWS file path dictionary from pickle file
         aws_file_dict = {}
-        with open('aws_file_dict_vUpdate.p.p', 'rb') as fp:
+        with open('data/aws_file_dict_vUpdate2.p', 'rb') as fp:
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # read in metadata csv into dataframe
-        df = pd.read_csv('metacopy.csv', sep=',')
-        row4 = df.loc[df['id'] == id]  # Find row with unique id
-        nprow4 = row4.to_numpy()[0]  # Convert to numpy
-        nprow4 = nprow4.reshape(1, 5)
+        df = pd.read_csv('metadata/metadata.csv', sep=',')
 
         for i, ID in enumerate(list_IDs_temp):
             # extract image
@@ -73,37 +71,41 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
             # extract metadata
             dfrow = df.loc[df['id'] == ID]
-            input_metadata = dfrow.to_numpy()[0]
-            input_metadata = input_metadata.reshape(5,1)
+            input_metadata = dfrow.to_numpy()
+            input_metadata = dfrow.to_numpy()[0] if (len(input_metadata) != 1) else dfrow.to_numpy()
+            input_metadata = np.arange(5).reshape(1, 5)
+            input_metadata = input_metadata[0][1:]
+            input_metadata = input_metadata.reshape(4, 1)
 
             image_init[i,] = input_image
             meta_init[i,] = input_metadata
 
             # Store class
-            y[i] = self.labels[ID]  # Store label
-
+            y[i] = self.labels[ID] + np.random.normal(0, 0.001)  # Store label
+            print(self.labels[ID])
+            print(y[i])
+            
         # assemble X tuple
         X = (image_init, meta_init)
 
         return X, y #keras.utils.to_categorical(y, num_classes=self.n_classes)
 
     # Model architecture
-
-
 class ConcatProtypeModel():
     def __init__(self):
-        self.numExamples = 1000
+        self.numExamples = 1000 # not actually needed in NN run
         self.width = 500
         self.height = 500
-        self.numChannels = 8
-        self.numMetaFeatures = 5
+        self.numChannels = 7
+        self.numMetaFeatures = 4
+        self.numEpochs = 200
         self.model = None
         self.history = None
         self.validation_generator = None
         self.train_generator = None
         self.genParams = {'dim': (self.width, self.height),
-                          'batch_size': 16,
-                          'n_classes': 10,
+                          'batch_size': 1,
+                          'n_classes': 10, # not needed anymore
                           'n_channels': self.numChannels,
                           'n_metaFeatures': self.numMetaFeatures,
                           'shuffle': True}
@@ -172,7 +174,7 @@ class ConcatProtypeModel():
         # compile model
         self.model.compile(loss="mse",  # used to be categorical_crossentropy
                            optimizer=optimizers.Adam(lr=1e-3, beta_1=0.9, beta_2=0.999),
-                           metrics=["accuracy"])
+                           metrics=[metrics.MeanSquaredError(), metrics.RootMeanSquaredError(),metrics.MeanAbsolutePercentageError()])
 
     def train(self, partition, labels):
         # Generators
@@ -180,26 +182,28 @@ class ConcatProtypeModel():
         self.validation_generator = ConcatDataGenerator(partition['val'], labels, **self.genParams)
 
         # Define model callbacks
-        checkpoint_cb = callbacks.ModelCheckpoint("concat_model.h5")
-        early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        checkpoint_cb = callbacks.ModelCheckpoint("concat_model_results/concat_model.h5")
+        early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-        csv_cb = callbacks.CSVLogger('training.log', separator=',', append=True)
+        csv_cb = callbacks.CSVLogger('concat_model_results/training.log', separator=',', append=True)
 
         # train model
         self.history = self.model.fit(x=self.train_generator,
-                                      epochs=2,
+                                      epochs=self.numEpochs,
                                       verbose=1,
                                       validation_data=self.validation_generator,
                                       callbacks=[checkpoint_cb, early_stopping_tuning_cb, tensorboard_cb, csv_cb],
-                                      shuffle=True)
+                                      shuffle=True,
+                                      use_multiprocessing=True,
+                                      workers=6)
 
     def eval(self):
         None
 
 if __name__ == "__main__":
 
-    # Sample Data generation
+    """# Sample Data generation
     num_examples = 1000
     height = 50
     width = 50
@@ -216,7 +220,7 @@ if __name__ == "__main__":
     test_ids = idArray[ten_percent_split:]
     val_ids = idArray[twent_percent_split:ten_percent_split]
     train_ids = idArray[:twent_percent_split]
-    partition_dict = {'train': train_ids, 'val': val_ids, 'test': test_ids}
+    partition_dict = {'train': train_ids, 'val': val_ids, 'test': test_ids}"""
 
     # Test Model
     NN = ConcatProtypeModel()
@@ -231,4 +235,11 @@ if __name__ == "__main__":
     NN.compile()
 
     # Train Model
-    # NN.train(partition_dict)
+    with open('data/partition_vUpdate2.p', 'rb') as fp:
+        partition_file = pickle.load(fp)  # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
+    with open('json_store/labels_v2/master_label_dict_vUpdate.pkl', 'rb') as fp:
+        labels_file = pickle.load(fp)  # dictionary of {'id-1': label 1, ... , 'id-n', label n}
+    NN.train(partition= partition_file, labels= labels_file)
+
+    # output message
+    print("------------RUN IS COMPELTE------------")

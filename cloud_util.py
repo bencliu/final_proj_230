@@ -15,6 +15,8 @@ import io
 from extractCountyData import truth_data_distribution, bin_truth_data
 import datetime
 import os
+import json
+import csv
 
 # Define global variables
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
@@ -23,7 +25,8 @@ AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 # Import functions
 from imageProcessing import image_process
 # from orders import obtain_crop_labels
-# import pickle5 as pickle
+import pickle5 as pickle
+import pandas as pd
 
 #Import county extraction functions
 from extractCountyData import read_county_GeoJSON, read_county_truth
@@ -85,7 +88,7 @@ def s3ProcessLabelImage(s3_client, bucket, session, cropLabels, truth_data_distr
     partition = {'train': train_ids, 'val': val_ids, 'test': test_ids}
 
     # Write data structures to file
-    with open('partition.p', 'wb') as fp:
+    with open('data/partition.p', 'wb') as fp:
         pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
     with open('labels.p', 'wb') as fp:
         pickle.dump(labelDictionary, fp, protocol=pickle.HIGHEST_PROTOCOL)
@@ -99,14 +102,12 @@ def createPartition(s3_client, bucket, session):
     for obj in bucket.objects.all():
         fileName = obj.key
         if fileName.endswith('AnalyticMS_clip.tif'):
-            print("PROCESSING REAL IMAGE")
             #Obtain crop label for image
             idSplit1 = fileName.split("Scene4Band/")[1] #After "Scene4Band"
             id = idSplit1.split("_3B_AnalyticMS_")[0] #Before "AnalyticMS"
             idArray = np.append(idArray, id)
     # Partition: Dictionary of val, test, train keys to [Id List] containing relevant ids
     # Label Dictionary: Key is ID, Value is crop label
-    print(idArray)
     np.random.shuffle(idArray)
     ten_percent_split = (-1) * int(len(idArray) / 10)
     twent_percent_split = (-2) * int(len(idArray) / 10)
@@ -117,9 +118,48 @@ def createPartition(s3_client, bucket, session):
     print("Train", len(train_ids))
     print("Val", len(val_ids))
     partition = {'train': train_ids, 'val': val_ids, 'test': test_ids}
-    with open('partition_vUpdate.p', 'wb') as fp:
+    with open('data/partition_vUpdate.p', 'wb') as fp:
         pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
     return partition
+
+#Create metadata CSV (Generate from images in the s3 buckets)
+def createMetadata():
+    session = boto3.Session(
+        aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+        aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+    )
+    s3 = session.resource('s3')
+    bucket = s3.Bucket('cs230datarev2')
+    s3_client = session.client('s3')
+    for obj in bucket.objects.all():
+        fileName = obj.key
+        if fileName.endswith('metadata.json'):
+            content_object = s3.Object('cs230datarev2', fileName)
+            file_content = content_object.get()['Body'].read().decode('utf-8')
+            json_content = json.loads(file_content)
+            id = json_content['id']
+            json_content = json_content['properties']
+
+            anom_pix = json_content['anomalous_pixels']
+            cloud_cover = json_content['cloud_cover']
+            origin_x = json_content['origin_x']
+            origin_y = json_content['origin_y']
+            time = json_content['acquired']
+            strip_id = json_content['strip_id']
+
+            fieldnames = ['id', 'anomalous_pix_perc', 'cloud_cover',
+                          'origin_x', 'origin_y', 'acquired', 'strip_id']
+            with open(r'metadata/metadata.csv', 'a', newline='') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writerow(
+                    {'id': id, 'anomalous_pix_perc': anom_pix, 'cloud_cover': cloud_cover,
+                     'origin_x': origin_x, 'origin_y': origin_y, 'acquired': time, 'strip_id': strip_id})
+
+
+
+
+
+
 
 #Writes master example dictionary to npy file
 def writeToNpy(path, dictionary):
@@ -178,8 +218,48 @@ def create_file_path_directory():
             file_path_dict[id] = fileName
             print(fileName)
     # write to pickle file
-    with open('aws_file_dict_vUpdate.p', 'wb') as fp:
+    with open('data/aws_file_dict_vUpdate.p', 'wb') as fp:
         pickle.dump(file_path_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
+
+"""
+Function: Analyze all images in AWS and compute areas based on non-zero pixels
+"""
+def compute_image_areas():
+    session = boto3.Session(
+        aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+        aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+    )
+    s3 = session.resource('s3')
+    bucket = s3.Bucket('cs230datarev2')
+
+    # extract all file paths into list
+    id_area_dict = {}
+    count = 0
+    for obj in bucket.objects.all():
+        fileName = obj.key
+        if fileName.endswith('AnalyticMS_clip.tif'):
+            idSplit1 = fileName.split("Scene4Band/")[1]  # After "Scene4Band"
+            id = idSplit1.split("_3B_AnalyticMS_")[0]  # Before "AnalyticMS"
+
+            #Read in numpy array TODONOW
+            with rasterio.Env(aws_secret_access_key=AWS_SERVER_SECRET_KEY,
+                              aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
+                              aws_session=session):
+                bucket = 's3://' + 'cs230datarev2' + '/'
+                path = bucket + str(fileName)
+                data = rasterio.open(path)
+                image = data.read()
+                b, g, r, n = image
+                print("created image")
+                nonzero_count = np.count_nonzero(g)
+                print("Counted nonzero")
+                id_area_dict[id] = nonzero_count * 9 #Each pixel is 9m^2
+                print("IMAGE ADDED", count)
+                count += 1
+
+    # write to pickle file
+    with open('data/aws_id_areas.p', 'wb') as fp:
+        pickle.dump(id_area_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
 """
 Function: Extract images from s3 bucket, perform image processing, write back to the cloud
@@ -204,12 +284,21 @@ def store_processed_images(maxH, maxW, scaling, completedPath='processed_images/
     # read in pickl file for all the file paths
     with open(awsFileDictPath, 'rb') as fp:
         aws_file_dict = pickle.load(fp)
+<<<<<<< HEAD
      
     count = 0 
     # loop through all the images in data set
     for key, val in aws_file_dict.items():
         count += 1
 
+=======
+
+    count = 0
+    # loop through all the images in data set
+    for key, val in aws_file_dict.items():
+
+        count += 1
+>>>>>>> c65030398ada0540e8e1091fba155b720c3a8b01
         # start timer
         start = time.time()
 
@@ -246,12 +335,24 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230datarev2')
     s3_client = session.client('s3')
 
+    compute_image_areas()
+
+    # createMetadata()
+
     # create_file_path_directory()
+<<<<<<< HEAD
     # createPartition(s3_client, bucket, session)
     # create_file_path_directory()
     store_processed_images(maxH=500, maxW=500, scaling=0.04, completedPath='processed_images/completed_images_v2.pkl',
                            awsFileDictPath='aws_file_dict_vUpdate2.p', s3bucketName='cs230datarev2',
                            imageDirPath='processed_images/concat_model/')
+=======
+    #createPartition(s3_client, bucket, session)
+    #create_file_path_directory()
+    #store_processed_images(maxH=500, maxW=500, scaling=0.04, completedPath='processed_images/completed_images_v2.pkl',
+                           #awsFileDictPath='aws_file_dict_vUpdate.p', s3bucketName='cs230datarev2',
+                           #imageDirPath='processed_images/concat_model/')
+>>>>>>> c65030398ada0540e8e1091fba155b720c3a8b01
 
 
 
@@ -355,7 +456,6 @@ def obtainAndStoreCropLabels():
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     # cropLabels = obtain_crop_labels(county_dict, county_truth)
-
 
     """# temporarily comment out
     path = "json_store/labels_all"

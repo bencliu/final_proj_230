@@ -113,9 +113,11 @@ Function: Calculates NDVI neighbor band
 @return: np array of shape (H, W)
 """
 def calculate_neighbors(ndvi):
+    print("Start calculating neighbor")
     gen_mask = np.ones((3, 3))
     gen_mask[1, 1] = 0 #Mask out middle pixel
     neighbor_matrix = ndimage.generic_filter(ndvi, np.nanmean, footprint=gen_mask, mode='constant', cval=np.NaN)
+    print("Finish neighbor calculation")
     return neighbor_matrix
 
 """

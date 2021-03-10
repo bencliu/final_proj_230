@@ -304,13 +304,55 @@ def process_crop_stats(combined_filter, fip_code, county_truth):
 
                 fieldnames = ['id', 'anomalous_pix_perc', 'cloud_cover',
                               'origin_x', 'origin_y']
-                with open(r'meta.csv', 'a', newline='') as csvfile:
+                with open(r'metadata/meta.csv', 'a', newline='') as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writerow(
                         {'id': itemid, 'anomalous_pix_perc': anomalous_pix_perc, 'cloud_cover': cloud_cover,
                          'origin_x': origin_x, 'origin_y': origin_y})
 
+    return image_to_yield_dict
 
+"""
+Helper function: Returns dictionary of image_ids corresponding to crop yield labels 
+@Param: 
+    - combined_filter dict
+    - fip_code int
+    - county_truth dict[County FIP: dict[year, yield]]
+@Return: Array of image_ids with crop labeling
+"""
+def process_crop_stats_area(combined_filter, fip_code, county_truth,
+                            areaLabelPath='data/aws_id_areas.p',
+                            countyAreaPath='data/county_areas'):
+    print("STARTING TO GATHER CROP STATISTICS")
+    item_asset_dict = extract_items(PLANET_API_KEY, combined_filter)
+    timeSliceDict = split_into_time_series(item_asset_dict) #Split into months
+
+    #Dictionary Time Split : {Dictionary of StripID : Vector of Activated Items}
+    finalStruct = split_by_strip(timeSliceDict, singleItem=True)
+    image_to_yield_dict = {}
+
+    #Unpickle Dictionary of AWS non-zero pixels per image
+    with open(areaLabelPath, 'rb') as fp:
+        imageArea_dict = pickle.load(fp)
+
+    with open(countyAreaPath, 'rb') as fp:
+        countyArea_dict = pickle.load(fp)
+
+    #Loop through time splits
+    for time_split, strip_dict in finalStruct.items():
+        #Gathered from groundtruth
+        cropYieldInTimeSplit = yield_for_time_split(time_split, fip_code, county_truth)
+
+        #Loop through each strip
+        for stripid, itemVec in strip_dict.items():
+            for image in itemVec:
+                itemid = image.json()['id']
+                if itemid not in imageArea_dict.keys():
+                    continue
+                imageArea = imageArea_dict[itemid]
+                countyArea = countyArea_dict[fip_code]
+                yieldPerImage = cropYieldInTimeSplit * (imageArea / countyArea)
+                image_to_yield_dict[itemid] = yieldPerImage
 
     return image_to_yield_dict
 
