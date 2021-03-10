@@ -8,6 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 from imageProcessing import visualize_image, calculate_neighbors
+import dateutil.parser
 
 #Functions for retrieving metadata for a specific itemID
 def retrieveRow(id="20181021_162348_102e"):
@@ -108,8 +109,38 @@ def displayGreen(image):
     plt.ylabel("Longitudinal Pixel")
     plt.show()
 
+def analyzeMeta():
+    df = pd.read_csv('../metadata.csv', sep=',')
+    idSet = {1}
+    stripCount = {}
+    timeCount = {}
+    count = 0
+    for index, row in df.iterrows():
+        id = row['id']
+        if id in idSet:
+            continue
+        idSet.add(id)
+        stripid = row['strip_id\\n']
+        coordinates = (row['origin_x'], row['origin_y'])
+        if stripid not in stripCount.keys():
+            stripCount[stripid] = 1
+        else:
+            stripCount[stripid] += 1
+        print("row", count)
+        count += 1
+    countAbove = 0
+    for key in stripCount.keys():
+        if stripCount[key] > 10:
+            countAbove += 1
+    print("CountAbove", countAbove / len(stripCount.keys()))
+    #print("stripCount", stripCount)
+
+#Function: Analyze and regenerate class labels for initial NN experiments
+def regenClassLabels():
+    print("Passing")
 
 if __name__ == "__main__":
+    analyzeMeta()
     #imageMosaicGen(maxH=7000, maxW=7000, withScale=True, scale=0.04)
-    analyzeImageMosaic("../ArchiveData/scaled" + '.npy')
+    #analyzeImageMosaic("../ArchiveData/scaled" + '.npy')
     #visualize_image("../ArchiveData/planet_sample1.tiff")
