@@ -118,13 +118,13 @@ class vnet_model():
         bestModel = self.model
         self.genParams['genFake'] = genFake #Testing for fake data generation
         if hp:
-            hp_batch_size = hp.Choice('batch_size', values=[16, 20, 24, 28, 32])
+            hp_batch_size = hp.Choice('batch_size', values=[32, 16, 24])
             self.genParams['batch_size'] = hp_batch_size #Pass batch size hp to generator params
             self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)
             self.validation_generator = DataGenerator(partition['val'], labels, **self.genParams)
             tuner = kt.Hyperband(self.compile,
                                  objective='mean_squared_error',
-                                 max_epochs=100,
+                                 max_epochs=10,
                                  factor=3,
                                  directory='json_store',
                                  project_name='vgg')
@@ -175,7 +175,7 @@ def test_vnet_fake():
 
 if __name__ == "__main__":
     print("STARTING...")
-    model = vnet_model(width=500, height=500, imageStorePath="processed_images/concat_model") #TODONOW
+    model = vnet_model(width=500, height=500, imageStorePath="processed_images/concat_model/") #TODONOW
     hp = kt.HyperParameters()
     model.compile(hp=hp, useRes=False)
 
