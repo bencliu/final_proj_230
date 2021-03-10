@@ -92,8 +92,8 @@ def construct_tensors(b, g, r, n):
     ndvi = calculate_NDVI(n, r)
     evi = calculate_EVI(b, r, n)
     msavi = calculate_MSAVI(r, n)
-    #ndvi_nbrs = calculate_neighbors(ndvi)
-    t1 = np.stack((b, g, r, n, ndvi, evi, msavi)) # 3 seconds
+    ndvi_nbrs = calculate_neighbors(ndvi)
+    t1 = np.stack((b, g, r, n, ndvi, evi, msavi, ndvi_nbrs)) # 3 seconds
     # t1 = tf.convert_to_tensor(stacked)
 
     """b_t = tf.convert_to_tensor(b) # 0.2 seconds

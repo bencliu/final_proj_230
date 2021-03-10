@@ -9,7 +9,7 @@ from requests.auth import HTTPBasicAuth
 import tensorflow as tf
 import numpy as np
 import random
-import pickle
+import pickle5 as pickle
 import time
 import io
 from extractCountyData import truth_data_distribution, bin_truth_data
@@ -204,9 +204,12 @@ def store_processed_images(maxH, maxW, scaling, completedPath='processed_images/
     # read in pickl file for all the file paths
     with open(awsFileDictPath, 'rb') as fp:
         aws_file_dict = pickle.load(fp)
-
+     
+    count = 0 
     # loop through all the images in data set
     for key, val in aws_file_dict.items():
+        count += 1
+
         # start timer
         start = time.time()
 
@@ -247,7 +250,7 @@ if __name__ == "__main__":
     # createPartition(s3_client, bucket, session)
     # create_file_path_directory()
     store_processed_images(maxH=500, maxW=500, scaling=0.04, completedPath='processed_images/completed_images_v2.pkl',
-                           awsFileDictPath='aws_file_dict_vUpdate.p', s3bucketName='cs230datarev2',
+                           awsFileDictPath='aws_file_dict_vUpdate2.p', s3bucketName='cs230datarev2',
                            imageDirPath='processed_images/concat_model/')
 
 
