@@ -9,7 +9,7 @@ from requests.auth import HTTPBasicAuth
 import tensorflow as tf
 import numpy as np
 import random
-import pickle
+import pickle5 as pickle
 import time
 import io
 from extractCountyData import truth_data_distribution, bin_truth_data
@@ -326,16 +326,19 @@ if __name__ == "__main__":
     bucket = s3.Bucket('cs230datarev2')
     s3_client = session.client('s3')
 
+    #createMetadata()
     compute_image_areas()
 
     # createMetadata()
 
     # create_file_path_directory()
+    # createPartition(s3_client, bucket, session)
+    # create_file_path_directory()
+    store_processed_images(maxH=500, maxW=500, scaling=0.04, completedPath='processed_images/completed_images_v2.pkl',
+                           awsFileDictPath='aws_file_dict_vUpdate2.p', s3bucketName='cs230datarev2',
+                           imageDirPath='processed_images/concat_model/')
     #createPartition(s3_client, bucket, session)
     #create_file_path_directory()
-    #store_processed_images(maxH=500, maxW=500, scaling=0.04, completedPath='processed_images/completed_images_v2.pkl',
-                           #awsFileDictPath='aws_file_dict_vUpdate.p', s3bucketName='cs230datarev2',
-                           #imageDirPath='processed_images/concat_model/')
 
 
 
