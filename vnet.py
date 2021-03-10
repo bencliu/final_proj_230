@@ -30,7 +30,7 @@ import pickle5 as pickle
 from NN_Model import get_run_logdir, analyze_data
 
 class vnet_model():
-    def __init__(self, width, height, imageStorePath="", numChannels=3):
+    def __init__(self, width, height, imageStorePath="", numChannels=3, classify=False):
         self.width = width
         self.height = height
         self.numChannels = numChannels
@@ -44,30 +44,34 @@ class vnet_model():
                           'batch_size': 24,
                           'n_channels': self.numChannels,
                           'shuffle': True,
-                          'classify': False,
+                          'classify': classify,
                           'imageStorePath': imageStorePath}
 
-    def compile(self, hp, useRes=True):
+    def compile(self, hp, useRes=True, classify=False):
         print("Start Compiling...")
         # ResNet50 Definition
         resModel = ResNet50(
             include_top=False,
-            weights="imagenet",
+            weights=None,
             input_tensor=None,
-            input_shape=(self.width, self.height, self.numChannels),
+            input_shape=(self.width, self.height, 3),
             pooling='max'
         )
 
         # VGG16 Definition
         vggModel = VGG16(
             include_top=False,
-            weights="imagenet",
+            weights=None,
             input_shape=(self.height, self.width, 3),
             pooling='max'
         )
 
         # Define model
         model = resModel if useRes else vggModel
+        finalActivation = "softmax" if classify else "relu"
+        finalUnits = 10 if classify else 1
+        lossFunc = "sparse_categorical_crossentropy" if classify else "mse"
+        metrics = ["accuracy"] if classify else [metrics.MeanSquaredError(), metrics.RootMeanSquaredError(), metrics.MeanAbsolutePercentageError()]
 
         # Dense series definition
         flat_layer = tf.keras.layers.Flatten()(model.output)
@@ -80,24 +84,21 @@ class vnet_model():
         fc3 = keras.layers.Dense(64, activation="relu")(b2)
         d3 = keras.layers.Dropout(0.5)(fc3)
         b3 = keras.layers.BatchNormalization()(d3)
-        final = keras.layers.Dense(1, activation="relu")(b3)
+        final = keras.layers.Dense(finalUnits, activation=finalActivation)(b3)
         self.model = tf.keras.models.Model(inputs=model.input, outputs=final)
 
         # Hyperparameters
-        hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+        hp_learning_rate = hp.Choice('learning_rate', values=[1e-3, 1e-4])
         selected_optimizer = optimizers.Adam(lr=hp_learning_rate,
                                              beta_1=0.9,
                                              beta_2=0.999)
-        print("Reached Pre-Compiling")
-        self.model.compile(loss="mse",
+        self.model.compile(loss=lossFunc,
                            optimizer=selected_optimizer,
-                           metrics=[metrics.MeanSquaredError(),
-                                    metrics.RootMeanSquaredError(),
-                                    metrics.MeanAbsolutePercentageError()])
+                           metrics=metrics)
         print(self.model.summary())
         return self.model
 
-    def train(self, labels, partition, hp=None, paramPath=None, genFake=False):
+    def train(self, labels, partition, modelName, hp=None, paramPath=None, genFake=False, classify=False):
         print("Start Training...")
         if paramPath:
             self.model = keras.models.load_model(paramPath)  # load in previous model to evaluate
@@ -105,17 +106,18 @@ class vnet_model():
 
         # Define model callbacks
 
-        checkpoint_cb = callbacks.ModelCheckpoint("vgg.h5")
+        checkpoint_cb = callbacks.ModelCheckpoint(modelName + ".h5")
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         early_stopping_training_cb = callbacks.EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-        csv_cb = callbacks.CSVLogger('my_logs/vgg/training.log', separator=',', append=True)
+        csv_cb = callbacks.CSVLogger('my_logs/' + modelName + '/training.log', separator=',', append=True)
 
 
         # Tuning
 
         bestModel = self.model
+        objective = 'val_accuracy' if classify else 'mean_squared_error'
         self.genParams['genFake'] = genFake #Testing for fake data generation
         if hp:
             hp_batch_size = hp.Choice('batch_size', values=[32, 16, 24])
@@ -123,11 +125,11 @@ class vnet_model():
             self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)
             self.validation_generator = DataGenerator(partition['val'], labels, **self.genParams)
             tuner = kt.Hyperband(self.compile,
-                                 objective='mean_squared_error',
+                                 objective=objective,
                                  max_epochs=10,
                                  factor=3,
                                  directory='json_store',
-                                 project_name='vgg')
+                                 project_name=modelName)
 
             # Search for Optimal Hyperparameters: TODO, Fix this tuning procedure
             tuner.search(self.train_generator, validation_data=self.validation_generator, epochs=20,
@@ -175,15 +177,15 @@ def test_vnet_fake():
 
 if __name__ == "__main__":
     print("STARTING...")
-    model = vnet_model(width=500, height=500, imageStorePath="processed_images/concat_model/") #TODONOW
+    model = vnet_model(width=500, height=500, imageStorePath="processed_images/vanilla_model/",
+                       classify=True)
     hp = kt.HyperParameters()
-    model.compile(hp=hp, useRes=False)
+    model.compile(hp=hp, useRes=False, classify=True)
 
     #Assign labels and partition
-    # Load in saved data structures
-    with open('data/partition_vUpdate2.p', 'rb') as fp:
+    with open('data/partition.p', 'rb') as fp:
         partition = pickle.load(fp)  # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
-    with open('json_store/labels_v2/master_label_dict_vUpdate.pkl', 'rb') as fp:
+    with open('json_store/labels/nn_model_binnedV2.pkl', 'rb') as fp:
         labels = pickle.load(fp)  # dictionary of {'id-1': label 1, ... , 'id-n', label n}
 
-    model.train(labels=labels, partition=partition, hp=hp)
+    model.train(labels=labels, partition=partition, hp=hp, classify=True, modelName="res_net_vanilla")

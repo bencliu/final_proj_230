@@ -83,7 +83,7 @@ class DataGenerator(keras.utils.Sequence):
             y[i] = self.labels[ID]
 
         if self.classify:
-            y -= 1 # Add subtract one if storing for classification, class vals take on [0,9]
+            #y -= 1 # Add subtract one if storing for classification, class vals take on [0,9]
             y = keras.utils.to_categorical(y, num_classes=self.n_classes)
 
         return X, y

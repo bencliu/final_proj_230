@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 from imageProcessing import visualize_image, calculate_neighbors
 import dateutil.parser
+import math
 
 #Functions for retrieving metadata for a specific itemID
 def retrieveRow(id="20181021_162348_102e"):
@@ -138,9 +139,30 @@ def analyzeMeta():
 #Function: Analyze and regenerate class labels for initial NN experiments
 def regenClassLabels():
     print("Passing")
+    with open('json_store/labels/master_label_dict.pkl', 'rb') as fp:
+        dict = pickle.load(fp)
+
+    binned = {}
+    classes = {0:1, 1:1.33, 2:1.66, 3:2, 4:2.33, 5:3, 6:4, 7:6, 8:8}
+    list = []
+    for key2, val in dict.items():
+        for label, threshold in classes.items():
+            if (val * 10) < threshold:
+                binned[key2] = label
+                break
+            binned[key2] = 9 #Default for too large
+
+    print(binned)
+    with open('json_store/labels/nn_model_binnedV2.pkl', 'wb') as fp:
+        pickle.dump(binned, fp)
+
+    y = binned.values()
+    plt.hist(binned.values(), bins=range(0, 10))
+    #plt.show()
+
 
 if __name__ == "__main__":
-    analyzeMeta()
+    regenClassLabels()
     #imageMosaicGen(maxH=7000, maxW=7000, withScale=True, scale=0.04)
     #analyzeImageMosaic("../ArchiveData/scaled" + '.npy')
     #visualize_image("../ArchiveData/planet_sample1.tiff")
