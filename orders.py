@@ -215,12 +215,12 @@ def extract_raw_labels(county_dictionary, county_truth):
 
     # read back in saved crop list
     completed_fips = []
-    if (os.path.isfile('json_store/labels_v2/completed_fips.pkl')):
-        with open('json_store/labels_v2/completed_fips.pkl', 'rb') as fp:
+    if (os.path.isfile('json_store/labels_v3/2017_completed_fips.pkl')):
+        with open('json_store/labels_v3/2017_completed_fips.pkl', 'rb') as fp:
             completed_fips = pickle.load(fp)
 
     # define the range of years to look at
-    yearRange = list(range(2018, 2020))
+    yearRange = [2017]
 
     #Loop through counties
     for year in yearRange:
@@ -236,16 +236,17 @@ def extract_raw_labels(county_dictionary, county_truth):
             #Attain Item IDs for County
             geoFilter = define_county_geometry(coordinates)
             searchFilter = combined_filter(geoFilter, year)
-            county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
+            # county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
+            county_dict = process_crop_stats_area(searchFilter, fipCode, county_truth, areaLabelPath='data/aws_id_areas.p', countyAreaPath='data/county_areas')
 
             # write save county dict (key: id, value: yields)
             ids = list(county_dict.keys())
-            with open('json_store/labels_v2/' + str(fipCode) + "_" + str(year) + '.pkl', 'wb') as fp:
+            with open('json_store/labels_v3/' + str(fipCode) + "_" + str(year) + '.pkl', 'wb') as fp:
                 pickle.dump(county_dict, fp)
 
             # store completed FIPS
             completed_fips.append(str(fipCode) + "_" + str(year))
-            with open('json_store/labels_v2/completed_fips.pkl', 'wb') as fp:
+            with open('json_store/labels_v3/2017_completed_fips.pkl', 'wb') as fp:
                 pickle.dump(completed_fips, fp)
 
             # output timed data
