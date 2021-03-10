@@ -21,6 +21,7 @@ import locale
 import matplotlib.pyplot as plot
 import pprint
 import unidecode
+import os
 
 """
 Function: Extracts the county FIPS code and polygon coordinates into a dictionary
@@ -261,7 +262,23 @@ def extract_brazil_geojson():
     print(count)
     print(len(filtered_munis))
 
+"""
+Function: Assemble Master Label Dictionary
+"""
+def assemble_master_label_dictionary():
 
+    # combine pickle files
+    master_label_dict = {}
+    filepath = "json_store/labels_v3"
+    for filename in os.listdir(filepath):
+        if filename.endswith(".pkl"):
+            with open('json_store/labels_v3/' + str(filename), 'rb') as fp:
+                dict = pickle.load(fp)
+                master_label_dict = {**master_label_dict, **dict}
+
+    # write to pickle file
+    with open('data/master_label_dict_v3.p', 'wb') as fp:
+        pickle.dump(master_label_dict, fp)
 
 """
 Function: This function bins the truth data based on the classification split
@@ -326,17 +343,24 @@ if __name__ == "__main__":
 
     # Extract brazil regional yields
     # read_brazil_regional_truth()
-    read_brazil_regional_truth_v3()
+    # read_brazil_regional_truth_v3()
 
     # Extract brazil geojson
-    extract_brazil_geojson()
+    # extract_brazil_geojson()
 
     # extract illinois area dictionary
     # read_illinois_county_area()
 
     # Obtain classification labels from truth data
     # export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
+    assemble_master_label_dictionary()
 
+    with open('data/master_label_dict_v3.p', 'rb') as fp:
+        labels = pickle.load(fp)
+    with open('data/aws_file_dict_vUpdate2.p', 'rb') as fp:
+        paths = pickle.load(fp)
+
+    pprint.pprint(labels)
 
 
 """
