@@ -1,6 +1,15 @@
 import csv
 import pandas as pd
 import pickle
+import rasterio
+from imageProcessing import standardize_image_np, construct_tensors
+from rasterio.enums import Resampling
+import numpy as np
+from matplotlib import pyplot as plt
+from PIL import Image
+from imageProcessing import visualize_image, calculate_neighbors
+import dateutil.parser
+import math
 
 #Functions for retrieving metadata for a specific itemID
 def retrieveRow(id="20181021_162348_102e"):
@@ -56,5 +65,104 @@ def changeFirstRow():
     print(df)
     #df.to_csv("metacopy.csv", index=False)
 
+def imageMosaicGen(maxH, maxW, withScale=False, scale=1.0):
+    # Call image processing on downloaded item
+    sat_data = rasterio.open("../ArchiveData/planet_sample1.tiff")
+    image = sat_data.read(
+        out_shape=(int(sat_data.height * scale), int(sat_data.width * scale)),
+        resampling=Resampling.nearest
+    ) \
+        if withScale else sat_data.read()
+
+    # Process and construct image
+    # centered_data = standardize_image_np(image, maxH, maxW)
+    b, g, r, n = image
+    print("Start constructing tensors")
+    image_tensor = construct_tensors(b, g, r, n)
+    print("Finished constructing tensor")
+
+    # Analyze image + store
+    with open("../ArchiveData/scaled" + '.npy', 'wb') as fp:
+        pickle.dump(image_tensor, fp)
+
+def analyzeImageMosaic(npyPath):
+    image = np.load(npyPath, allow_pickle=True)
+    image = np.transpose(image, (1, 2, 0))
+
+    #RGB Image
+    """
+    rgbTemplate = np.flip(image[:,:,:3], axis=2)
+    plt.imshow(rgbTemplate.astype('uint8'))
+    plt.xlabel("Latitudinal Pixel")
+    plt.ylabel("Longitudinal Pixel")
+    plt.show()
+    """
+
+
+    #NDVI, EVI, MSAVI, NDVI_NBRS
+    im = image[:,:,4:5]
+    nbrs = calculate_neighbors(im[:,:,0])
+    displayGreen(nbrs)
+
+def displayGreen(image):
+    plt.imshow(image.astype('uint8'))
+    plt.xlabel("Latitudinal Pixel")
+    plt.ylabel("Longitudinal Pixel")
+    plt.show()
+
+def analyzeMeta():
+    df = pd.read_csv('../metadata.csv', sep=',')
+    idSet = {1}
+    stripCount = {}
+    timeCount = {}
+    count = 0
+    for index, row in df.iterrows():
+        id = row['id']
+        if id in idSet:
+            continue
+        idSet.add(id)
+        stripid = row['strip_id\\n']
+        coordinates = (row['origin_x'], row['origin_y'])
+        if stripid not in stripCount.keys():
+            stripCount[stripid] = 1
+        else:
+            stripCount[stripid] += 1
+        print("row", count)
+        count += 1
+    countAbove = 0
+    for key in stripCount.keys():
+        if stripCount[key] > 10:
+            countAbove += 1
+    print("CountAbove", countAbove / len(stripCount.keys()))
+    #print("stripCount", stripCount)
+
+#Function: Analyze and regenerate class labels for initial NN experiments
+def regenClassLabels():
+    print("Passing")
+    with open('json_store/labels/master_label_dict.pkl', 'rb') as fp:
+        dict = pickle.load(fp)
+
+    binned = {}
+    classes = {0:1, 1:1.33, 2:1.66, 3:2, 4:2.33, 5:3, 6:4, 7:6, 8:8}
+    list = []
+    for key2, val in dict.items():
+        for label, threshold in classes.items():
+            if (val * 10) < threshold:
+                binned[key2] = label
+                break
+            binned[key2] = 9 #Default for too large
+
+    print(binned)
+    with open('json_store/labels/nn_model_binnedV2.pkl', 'wb') as fp:
+        pickle.dump(binned, fp)
+
+    y = binned.values()
+    plt.hist(binned.values(), bins=range(0, 10))
+    #plt.show()
+
+
 if __name__ == "__main__":
-    testWriteRow2()
+    regenClassLabels()
+    #imageMosaicGen(maxH=7000, maxW=7000, withScale=True, scale=0.04)
+    #analyzeImageMosaic("../ArchiveData/scaled" + '.npy')
+    #visualize_image("../ArchiveData/planet_sample1.tiff")

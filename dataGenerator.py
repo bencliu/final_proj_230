@@ -24,8 +24,9 @@ TODO Notes:
 """
 
 class DataGenerator(keras.utils.Sequence):
-    def __init__(self, list_IDs, labels, batch_size=10, dim=(maxW, maxH), n_channels=7,
-                 n_classes=10, shuffle=True):
+    def __init__(self, list_IDs, labels, imageStorePath,
+                 batch_size=10, dim=(maxW, maxH), n_channels=7,
+                 n_classes=10, shuffle=True, classify=True, genFake=False):
         #Initialization
         self.dim = dim
         self.batch_size = batch_size
@@ -35,9 +36,12 @@ class DataGenerator(keras.utils.Sequence):
         self.n_classes = n_classes
         self.shuffle = shuffle
         self.on_epoch_end()
+        self.classify = classify
+        self.imageStorePath = imageStorePath
+        self.genFake = genFake
 
     def __len__(self):
-        #Denote: Number of batches per epoch
+        # Denote number of batches per epoch
         return int(np.floor(len(self.list_IDs) / self.batch_size))
 
     def __getitem__(self, index):
@@ -54,42 +58,32 @@ class DataGenerator(keras.utils.Sequence):
         return X, y
 
     def on_epoch_end(self):
-        #Updates indexes: Called at the VERY beginning | + end of each epoch
+        # Updates indexes: Called at the VERY beginning | + end of each epoch
         self.indexes = np.arange(len(self.list_IDs))
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
 
     #Private helper method
     def __data_generation(self, list_IDs_temp):
-        #Generates data containing batch_size samples | X : (n_samples, *dim, n_channels)
+        # Generates data containing batch_size samples | X : (n_samples, *dim, n_channels)
         # Initialization
         X = np.empty((self.batch_size, *self.dim, self.n_channels)) # (numSamples, H, W, C)
-        y = np.empty((self.batch_size), dtype=int) # (numSamples) => Labels
-
-        # read in AWS file path dictionary from pickle file
-        aws_file_dict = {}
-        with open('aws_file_dict.p', 'rb') as fp:
-            aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
+        y = np.empty((self.batch_size), dtype=float) # (numSamples) => Labels
 
         # Generate data
-        #session = boto3.Session(
-        #    aws_access_key_id=AWS_SERVER_PUBLIC_KEY,
-        #    aws_secret_access_key=AWS_SERVER_SECRET_KEY,
-        #)
         for i, ID in enumerate(list_IDs_temp):
-            #print("GENERATING NEW IMAGE <GATA_GENERATION> Iteration", i)
             # Store sample
-
-            # process image
-            #X_data = image_process(session, 's3://cs230data/' + aws_file_dict[ID], maxW=maxW, maxH=maxH)  # shape (C, H, W)
-            #X_data = np.random.uniform(low=0.0, high=250.0, size=(7, 500, 500))
-            X_data = np.load('processed_images/vanilla_model/' + ID + '.npy', allow_pickle=True) 
-            #X_data = np.transpose(X_data, (1, 2, 0))  # shape (H, W, C)
-            X_data = X_data / 255
-            assert X_data.shape == (maxW, maxH, 7)
+            X_data = np.random.randint(low=0, high=5, size=(self.dim[0], self.dim[1], self.n_channels))\
+                    if self.genFake else np.load(self.imageStorePath + ID + '.npy', allow_pickle=True)
+            X_data = X_data[:, :, :self.n_channels] #Image limited to specified number of channels
+            assert X_data.shape == (maxW, maxH, self.n_channels)
             X[i,] = X_data
 
             # Store class
-            y[i] = self.labels[ID] - 1 #Store label
+            y[i] = self.labels[ID]
 
-        return X, keras.utils.to_categorical(y, num_classes=self.n_classes)
+        if self.classify:
+            #y -= 1 # Add subtract one if storing for classification, class vals take on [0,9]
+            y = keras.utils.to_categorical(y, num_classes=self.n_classes)
+
+        return X, y

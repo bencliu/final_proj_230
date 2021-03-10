@@ -15,7 +15,9 @@ import fetchData
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import math
 import pickle
+import locale
 
 """
 Function: Extracts the county FIPS code and polygon coordinates into a dictionary
@@ -84,6 +86,102 @@ def read_county_truth(filename: str):
     return county_truth_yields
 
 """
+Function: Extract regional yield truth data into nested dictionary for brazil from raw paper
+source: https://github.com/AnnaXWang/deep-transfer-learning-crop-prediction/blob/master/code/static_data_files/brazil_yields_standardized.csv
+@Param: n/a
+@Return dict[Region name: dict[year, yield] 
+"""
+def read_brazil_regional_truth():
+
+    # read in filtered soybean regions
+    regions = []
+    with open('json_store/brazil_soybeans_filtered_regions.txt', 'r') as file:
+        for line in file:
+            region = line.split("-")[0]
+            regions.append(region)
+    file.close()
+
+    regional_truth_yields = {}
+    with open('json_store/brazil_yields_standardized.csv', 'r') as file:
+        reader = csv.reader(file, delimiter=',', skipinitialspace=True)
+        next(reader)
+        for row in reader:
+
+            # extract regional metrics
+            region = str(row[1])
+            year = int(row[2])
+            regional_yield = float(row[-1])
+
+            # only keep soybean filtered regions
+            if region not in regions:
+                continue
+
+            # populate nested dictionary with annual yields for each county
+            if region not in regional_truth_yields:
+                regional_truth_yields[region] = {year: regional_yield}
+            else:
+                regional_truth_yields[region][year] = regional_yield
+    print(regional_truth_yields)
+    file.close()
+
+"""
+Function: Extract county areas
+"""
+def read_illinois_county_area():
+
+    # extract excel contents to lists
+    county_areas = {}
+    with open('json_store/Illinois_County_Areas.csv', 'r') as file:
+        reader = csv.reader(file, delimiter=',', skipinitialspace=True)
+        next(reader)
+        for row in reader:
+            fipCode = int(row[1])
+            areaString = row[-2]
+            extractedString = re.search('mi(.*)km2', areaString)
+            isolatedString = extractedString.group(1)[1:]
+            locale.setlocale( locale.LC_ALL, 'en_US.UTF-8' )
+            rawArea = locale.atoi(isolatedString)
+            area = rawArea * 1000000; # convert from km^2 to m^2
+            county_areas[fipCode] = area
+    file.close()
+
+    with open('data/county_areas.p', 'wb') as fp:
+        pickle.dump(county_areas, fp)
+
+"""
+Function: Extracts truth from municipal agricultural production website (SIDRA)
+Source: https://sidra.ibge.gov.br/tabela/1612
+@Params: None
+@Return dict[Region name: dict[year, yield] 
+"""
+def read_brazil_regional_truth_v2():
+
+    # extract excel contents to lists
+    xl_file = pd.read_excel('json_store/Brazil_Truth.xlsx', engine='openpyxl', skiprows=4, skipfooter=1)
+    cols = xl_file.columns.tolist()
+    mesoregions = xl_file[cols[0]].tolist()
+    yield_2017 = xl_file[cols[1]].tolist()
+    yield_2018 = xl_file[cols[2]].tolist()
+    yield_2019 = xl_file[cols[3]].tolist()
+
+    # populate nested dictionary with annual yields for each mesoregion
+    tobush = 1/67.25
+    mesoregional_truth_yields = {}
+    for i in range(len(mesoregions)):
+        mesoregion = mesoregions[i].split(" (")[0]
+        if isinstance(yield_2017[i], str) or isinstance(yield_2018[i], str) or isinstance(yield_2019[i], str):
+            continue # skip if mesoregion is missing contents
+        if mesoregions[i] not in mesoregional_truth_yields:
+            mesoregional_truth_yields[mesoregion] = {2017: yield_2017[i] * tobush,
+                                                         2018: yield_2018[i] * tobush,
+                                                         2019: yield_2019[i] * tobush}
+        else:
+            mesoregional_truth_yields[mesoregion][2017] = yield_2017[i] * tobush
+            mesoregional_truth_yields[mesoregion][2018] = yield_2018[i] * tobush
+            mesoregional_truth_yields[mesoregion][2019] = yield_2019[i] * tobush
+    print(mesoregional_truth_yields)
+
+"""
 Function: This function bins the truth data based on the classification split
 @Params: truth_data of shape (# of examples, 1), binned ranges np.array
 @Returns: array of shape (# of examples, 1) binned into the given number of classes
@@ -144,8 +242,15 @@ if __name__ == "__main__":
     # Extract county truth yields from csv
     # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
 
+    # Extract brazil regional yields
+    # read_brazil_regional_truth()
+    # read_brazil_regional_truth_v2()
+
+    # extract illinois area dictionary
+    read_illinois_county_area()
+
     # Obtain classification labels from truth data
-    export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
+    # export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
 
 
 

@@ -59,7 +59,7 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
         # read in AWS file path dictionary from pickle file
         aws_file_dict = {}
-        with open('aws_file_dict_vUpdate2.p', 'rb') as fp:
+        with open('data/aws_file_dict_vUpdate2.p', 'rb') as fp:
             aws_file_dict = pickle.load(fp)  # dictionary of {key: id, value: aws full path}
 
         # read in metadata csv into dataframe
@@ -82,6 +82,8 @@ class ConcatDataGenerator(keras.utils.Sequence):
 
             # Store class
             y[i] = self.labels[ID] + np.random.normal(0, 0.001)  # Store label
+            print(self.labels[ID])
+            print(y[i])
             
         # assemble X tuple
         X = (image_init, meta_init)
@@ -102,7 +104,7 @@ class ConcatProtypeModel():
         self.validation_generator = None
         self.train_generator = None
         self.genParams = {'dim': (self.width, self.height),
-                          'batch_size': 24,
+                          'batch_size': 1,
                           'n_classes': 10, # not needed anymore
                           'n_channels': self.numChannels,
                           'n_metaFeatures': self.numMetaFeatures,
@@ -233,7 +235,7 @@ if __name__ == "__main__":
     NN.compile()
 
     # Train Model
-    with open('partition_vUpdate2.p', 'rb') as fp:
+    with open('data/partition_vUpdate2.p', 'rb') as fp:
         partition_file = pickle.load(fp)  # dictionary of {'train': ID list, 'val': ID list, 'test': ID list}
     with open('json_store/labels_v2/master_label_dict_vUpdate.pkl', 'rb') as fp:
         labels_file = pickle.load(fp)  # dictionary of {'id-1': label 1, ... , 'id-n', label n}
