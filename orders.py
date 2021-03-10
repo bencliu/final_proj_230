@@ -7,7 +7,7 @@ import numpy as np
 import rasterio
 from rasterio.plot import show
 import requests
-import pickle
+import pickle5 as pickle
 from requests.auth import HTTPBasicAuth
 import datetime
 import os.path
@@ -17,7 +17,7 @@ import csv
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
-PLANET_API_KEY = '3b5b83781d7d443e9a21b943c913c280'
+PLANET_API_KEY = 'b99bfe8b97d54205bccad513987bbc02'
 AWS_SERVER_PUBLIC_KEY = "" #TODO: Add after pull
 AWS_SERVER_SECRET_KEY = "" #TODO: Add after pull
 auth = HTTPBasicAuth(PLANET_API_KEY, '')
@@ -215,19 +215,19 @@ def extract_raw_labels(county_dictionary, county_truth):
 
     # read back in saved crop list
     completed_fips = []
-    if (os.path.isfile('json_store/labels_v3/2017_completed_fips.pkl')):
-        with open('json_store/labels_v3/2017_completed_fips.pkl', 'rb') as fp:
+    if (os.path.isfile('json_store/labels_v3/2018_completed_fips.pkl')):
+        with open('json_store/labels_v3/2018_completed_fips.pkl', 'rb') as fp:
             completed_fips = pickle.load(fp)
 
     # define the range of years to look at
-    yearRange = [2017]
+    yearRange = [2018]
 
     #Loop through counties
     for year in yearRange:
         for fipCode, coordinates in county_dictionary.items():
 
             # Assuming restart after failed run, check to see if fip has already been processed
-            if (fipCode in completed_fips):
+            if (fipCode in completed_fips) or fipCode < 15:
                 continue # skip fip if already processed
 
             # process county
@@ -237,7 +237,7 @@ def extract_raw_labels(county_dictionary, county_truth):
             geoFilter = define_county_geometry(coordinates)
             searchFilter = combined_filter(geoFilter, year)
             # county_dict = process_crop_stats(searchFilter, fipCode, county_truth)
-            county_dict = process_crop_stats_area(searchFilter, fipCode, county_truth, areaLabelPath='data/aws_id_areas.p', countyAreaPath='data/county_areas')
+            county_dict = process_crop_stats_area(searchFilter, fipCode, county_truth, areaLabelPath='data/aws_id_areas.p', countyAreaPath='data/county_areas.p')
 
             # write save county dict (key: id, value: yields)
             ids = list(county_dict.keys())
@@ -246,7 +246,7 @@ def extract_raw_labels(county_dictionary, county_truth):
 
             # store completed FIPS
             completed_fips.append(str(fipCode) + "_" + str(year))
-            with open('json_store/labels_v3/2017_completed_fips.pkl', 'wb') as fp:
+            with open('json_store/labels_v3/2018_completed_fips.pkl', 'wb') as fp:
                 pickle.dump(completed_fips, fp)
 
             # output timed data
@@ -323,7 +323,7 @@ Helper function: Returns dictionary of image_ids corresponding to crop yield lab
 """
 def process_crop_stats_area(combined_filter, fip_code, county_truth,
                             areaLabelPath='data/aws_id_areas.p',
-                            countyAreaPath='data/county_areas'):
+                            countyAreaPath='data/county_areas.p'):
     print("STARTING TO GATHER CROP STATISTICS")
     item_asset_dict = extract_items(PLANET_API_KEY, combined_filter)
     timeSliceDict = split_into_time_series(item_asset_dict) #Split into months
