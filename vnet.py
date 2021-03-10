@@ -71,7 +71,7 @@ class vnet_model():
         finalActivation = "softmax" if classify else "relu"
         finalUnits = 10 if classify else 1
         lossFunc = "sparse_categorical_crossentropy" if classify else "mse"
-        metrics = ["accuracy"] if classify else [metrics.MeanSquaredError(), metrics.RootMeanSquaredError(), metrics.MeanAbsolutePercentageError()]
+        metric = ["accuracy"] if classify else [metrics.MeanSquaredError(), metrics.RootMeanSquaredError(), metrics.MeanAbsolutePercentageError()]
 
         # Dense series definition
         flat_layer = tf.keras.layers.Flatten()(model.output)
@@ -94,7 +94,7 @@ class vnet_model():
                                              beta_2=0.999)
         self.model.compile(loss=lossFunc,
                            optimizer=selected_optimizer,
-                           metrics=metrics)
+                           metrics=metric)
         print(self.model.summary())
         return self.model
 
