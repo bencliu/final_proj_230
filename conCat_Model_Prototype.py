@@ -186,7 +186,7 @@ class ConcatProtypeModel():
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=30, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-        csv_cb = callbacks.CSVLogger('concat_model_results/training.log', separator=',', append=True)
+        csv_cb = callbacks.CSVLogger('concat_model_results/concat_run_1.log', separator=',', append=True)
 
         # train model
         self.history = self.model.fit(x=self.train_generator,

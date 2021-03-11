@@ -3,6 +3,7 @@ import pickle
 import matplotlib.pyplot as plot
 import numpy as np
 import pprint
+import pandas as pd
 
 """
 Function: Plot histogram of data
@@ -21,14 +22,34 @@ def plot_training_data_histogram(file: str):
         data.append(val)
 
     # plot histogram
-    plot.hist(data, density=True, bins=100)
-    plot.xlabel('Soybean Yield per image (Bushel/Acre)')
+    plot.hist(data, density=True, bins=500)
+    plot.xlabel('Scaled soybean yield (Normalized Bushel/Acre per County Area)')
     plot.ylabel('Occurence')
-    plot.title('Histogram of Training Data')
+    plot.title('Histogram of Training Labels')
+    plot.xlim(left=-5, right=10)
     plot.grid()
     plot.show()
-    print(sum(data)/len(data))
 
+"""
+Function: Process Training Log
+"""
+def process_training_log(filepath: str, name_of_model: str):
+
+    # read in raw file
+    df = pd.read_csv(filepath)
+
+    # plot train/val error as a function of epoch
+    df.plot(x = "epoch", y = ["val_mean_squared_error", "mean_squared_error"])
+    plot.ylabel("MSE")
+    plot.title(name_of_model + " train/val MSE")
+    plot.xlim(left = 0, right = len(df["epoch"])+1 )
+    plot.grid()
+    plot.show()
+
+"""
+Function: pre-processes the training data by removing the mean and scaling by the variance
+@Params: file path of dictionary of lavel data
+"""
 def preprocess_data(file: str):
 
     # read in label pickle file
@@ -58,20 +79,6 @@ if __name__ == "__main__":
 
     # preprocess_data('data/master_label_dict_v3.p')
     plot_training_data_histogram('data/processed_label_dict.p')
+    # process_training_log("concat_model_results/concat_run_1.log", "Concatenated Arms Model")
 
 
-    """# read in county_areas
-    with open('data/county_areas.p', 'rb') as fp:
-        countyarea = pickle.load(fp)
-    with open('data/aws_id_areas.p', 'rb') as fp:
-        awsarea = pickle.load(fp)
-    dataaws = []
-    for key, val in awsarea.items():
-        dataaws.append(val)
-    plot.hist(dataaws, density=True, bins=1000)
-    data = []
-    for key, val in countyarea.items():
-        data.append(val)
-    plot.hist(data, density=True, bins=1000)
-    plot.show()"""
-    #pprint.pprint(countyarea)
