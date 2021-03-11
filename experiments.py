@@ -167,7 +167,10 @@ def testLabels():
     with open('json_store/labels/master_label_dict_binned.pkl', 'rb') as fp:
         labels2 = pickle.load(fp)
 
-    print(labels2)
+    with open('data/aws_id_areas.p', 'rb') as fp:
+        area = pickle.load(fp)
+
+    print(area)
 
 
 if __name__ == "__main__":
