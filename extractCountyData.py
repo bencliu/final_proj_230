@@ -243,7 +243,7 @@ def extract_brazil_geojson():
         filtered_munis = pickle.load(fp)
 
     # Read in GeoJSON file
-    filename = "/Users/christopheryu/Desktop/brazil_municipalities_1991_mit_geo_web/processed/05_malhamunicipal1991_20.json"
+    filename = "/Users/christopheryu/Desktop/brazil_municipalities_1991_mit_geo_web/processed/05_malhamunicipal1991_10.json"
     with open(filename) as f:
         gj = geojson.load(f)
 
@@ -342,7 +342,7 @@ def export_classification_labels(completed_fips_list_file_path: str, num_classes
 if __name__ == "__main__":
     
     # Extract county polygons from GeoJSON
-    county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
+    # county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
 
     # Extract county truth yields from csv
     # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
