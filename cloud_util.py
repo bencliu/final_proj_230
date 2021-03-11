@@ -88,7 +88,7 @@ def s3ProcessLabelImage(s3_client, bucket, session, cropLabels, truth_data_distr
     partition = {'train': train_ids, 'val': val_ids, 'test': test_ids}
 
     # Write data structures to file
-    with open('data/partition.p', 'wb') as fp:
+    with open('data/archive/partition.p', 'wb') as fp:
         pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
     with open('labels.p', 'wb') as fp:
         pickle.dump(labelDictionary, fp, protocol=pickle.HIGHEST_PROTOCOL)
@@ -118,7 +118,7 @@ def createPartition(s3_client, bucket, session):
     print("Train", len(train_ids))
     print("Val", len(val_ids))
     partition = {'train': train_ids, 'val': val_ids, 'test': test_ids}
-    with open('data/partition_vUpdate.p', 'wb') as fp:
+    with open('data/archive/partition_vUpdate.p', 'wb') as fp:
         pickle.dump(partition, fp, protocol=pickle.HIGHEST_PROTOCOL)
     return partition
 
@@ -218,7 +218,7 @@ def create_file_path_directory():
             file_path_dict[id] = fileName
             print(fileName)
     # write to pickle file
-    with open('data/aws_file_dict_vUpdate.p', 'wb') as fp:
+    with open('data/archive/aws_file_dict_vUpdate.p', 'wb') as fp:
         pickle.dump(file_path_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
 """
@@ -258,7 +258,7 @@ def compute_image_areas():
                 count += 1
 
     # write to pickle file
-    with open('data/aws_id_areas.p', 'wb') as fp:
+    with open('data/archive/aws_id_areas.p', 'wb') as fp:
         pickle.dump(id_area_dict, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
 """

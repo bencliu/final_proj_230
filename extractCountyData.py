@@ -149,7 +149,7 @@ def read_illinois_county_area():
             county_areas[fipCode] = area
     file.close()
 
-    with open('data/county_areas.p', 'wb') as fp:
+    with open('data/archive/county_areas.p', 'wb') as fp:
         pickle.dump(county_areas, fp)
 
 """
@@ -277,7 +277,7 @@ def assemble_master_label_dictionary():
                 master_label_dict = {**master_label_dict, **dict}
 
     # write to pickle file
-    with open('data/master_label_dict_v3.p', 'wb') as fp:
+    with open('data/archive/master_label_dict_v3.p', 'wb') as fp:
         pickle.dump(master_label_dict, fp)
 
 """
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     # export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
     assemble_master_label_dictionary()
 
-    with open('data/master_label_dict_v3.p', 'rb') as fp:
+    with open('data/archive/master_label_dict_v3.p', 'rb') as fp:
         labels = pickle.load(fp)
     with open('data/aws_file_dict_vUpdate2.p', 'rb') as fp:
         paths = pickle.load(fp)
