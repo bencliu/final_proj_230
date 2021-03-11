@@ -233,6 +233,7 @@ def read_brazil_regional_truth_v3():
 
 """
 Function: Extract GEOJSON of counties
+Note: Output pickle file of dict[Muni Name: List[List[Coordinates]]]
 """
 
 def extract_brazil_geojson():
@@ -258,6 +259,11 @@ def extract_brazil_geojson():
         if muni_name in filtered_munis:
             debug.append(muni_name)
             count += 1
+            muni_polygons[muni_name] = gj['features'][i]['geometry']['coordinates']
+
+    # write geojson to pickle file
+    with open('json_store/brazil_data/filtered_brazil_geojson.p', 'wb') as fp:
+        pickle.dump(muni_polygons, fp)
 
     print(count)
     print(len(filtered_munis))
@@ -336,7 +342,7 @@ def export_classification_labels(completed_fips_list_file_path: str, num_classes
 if __name__ == "__main__":
     
     # Extract county polygons from GeoJSON
-    # county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
+    county_polygons = read_county_GeoJSON("json_store/Illinois_counties.geojson")
 
     # Extract county truth yields from csv
     # county_truth_yields = read_county_truth("json_store/Illinois_Soybeans_Truth_Data.csv")
@@ -346,21 +352,21 @@ if __name__ == "__main__":
     # read_brazil_regional_truth_v3()
 
     # Extract brazil geojson
-    # extract_brazil_geojson()
+    extract_brazil_geojson()
 
     # extract illinois area dictionary
     # read_illinois_county_area()
 
     # Obtain classification labels from truth data
     # export_classification_labels(completed_fips_list_file_path = 'json_store/labels_v2/completed_fips.pkl', num_classes = 10)
-    assemble_master_label_dictionary()
+    # assemble_master_label_dictionary()
 
-    with open('data/archive/master_label_dict_v3.p', 'rb') as fp:
+    """with open('data/archive/master_label_dict_v3.p', 'rb') as fp:
         labels = pickle.load(fp)
     with open('data/aws_file_dict_vUpdate2.p', 'rb') as fp:
         paths = pickle.load(fp)
 
-    pprint.pprint(labels)
+    pprint.pprint(labels)"""
 
 
 """
