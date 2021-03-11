@@ -14,6 +14,7 @@ import os.path
 import time
 import pprint
 import csv
+import random
 
 # global variables and setup
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
@@ -128,10 +129,11 @@ Order pipeline:
 def integrated_order_pipe(county_dictionary):
 
     # define the range of years to look at
-    yearRange = list(range(2017, 2020))
+    yearRange = [2017, 2018, 2019]
 
     for year in yearRange:
         for fipCode, coordinates in county_dictionary.items():
+            start = time.time()
             print("PROCESS NEW COUNTY " + str(fipCode) + " for the year of " + str(year))
             #Attain Item IDs for County
             geoFilter = define_county_geometry(coordinates)
@@ -141,13 +143,19 @@ def integrated_order_pipe(county_dictionary):
             #Perform ordering and downloading of images (Code in tester) (Write to AWS)
             order_and_download(id_vec, fipCode, coordinates, year)
             print("COMPLETED S3 DOWNLOAD FOR" + str(fipCode) + " in " + str(year))
+            end = time.time()
+            print(str(end - start))
+
 
 def order_and_download(itemidVector, fipCode, coordinates, year):
     print("Starting order and downloads")
     # define products
+    random.seed(42)
+    selected_ids = random.sample(itemidVector, 35)
+
     single_product = [
         {
-            "item_ids": itemidVector[:35],
+            "item_ids": selected_ids, # itemidVector[:35]
             "item_type": "PSScene4Band",
             "product_bundle": "analytic"
         }
@@ -169,7 +177,7 @@ def order_and_download(itemidVector, fipCode, coordinates, year):
     # define delivery
     delivery = {
         "amazon_s3": {
-            "bucket": "cs230datarev2",
+            "bucket": "cs230databrazil",
             "aws_region": "us-west-1",
             "aws_access_key_id": AWS_SERVER_PUBLIC_KEY,
             "aws_secret_access_key": AWS_SERVER_SECRET_KEY,
@@ -413,8 +421,10 @@ def combined_filter(geojson, year):
     }
 
     # Date Range
-    minDate = str(year) + "-09-15T00:00:00.000Z"
-    maxDate = str(year) + "-11-01T20:00:00.000Z"
+    #minDate = str(year) + "-09-15T00:00:00.000Z"
+    #maxDate = str(year) + "-11-01T20:00:00.000Z"
+    minDate = str(year) + "-02-25T00:00:00.000Z" # altered for brazil mato grosso
+    maxDate = str(year) + "-4-10T20:00:00.000Z"
     date_range_filter = {
         "type": "DateRangeFilter",
         "field_name": "acquired",
@@ -450,17 +460,19 @@ def combined_filter(geojson, year):
 
 if __name__ == "__main__":
 
-    """
-    print("STARTING ORDERS PIPELINE")
-    county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
-    integrated_order_pipe(county_dictionary)
-    """
 
-    print("Starting to collect labels")
+    print("STARTING ORDERS PIPELINE")
+    # county_dictionary = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
+    with open('json_store/brazil_data/filtered_brazil_munis.p', 'rb') as fp:
+        muni_dict = pickle.load(fp)
+    integrated_order_pipe(muni_dict)
+
+
+    """print("Starting to collect labels")
     county_dict = read_county_GeoJSON(filename='json_store/Illinois_counties.geojson')
     county_truth = read_county_truth(filename='json_store/Illinois_Soybeans_Truth_Data.csv')
     extract_raw_labels(county_dict, county_truth)
-    print("Finished collecting labels")
+    print("Finished collecting labels")"""
 
 
 
