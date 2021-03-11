@@ -160,9 +160,18 @@ def regenClassLabels():
     plt.hist(binned.values(), bins=range(0, 10))
     #plt.show()
 
+def testLabels():
+    with open('json_store/labels/nn_model_binnedV2.pkl', 'rb') as fp:
+        labels = pickle.load(fp)
+
+    with open('json_store/labels/master_label_dict_binned.pkl', 'rb') as fp:
+        labels2 = pickle.load(fp)
+
+    print(labels2)
+
 
 if __name__ == "__main__":
-    regenClassLabels()
+    testLabels()
     #imageMosaicGen(maxH=7000, maxW=7000, withScale=True, scale=0.04)
     #analyzeImageMosaic("../ArchiveData/scaled" + '.npy')
     #visualize_image("../ArchiveData/planet_sample1.tiff")
