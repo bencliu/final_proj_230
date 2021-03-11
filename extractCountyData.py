@@ -52,6 +52,8 @@ def read_county_GeoJSON(filename: str):
         county_geometry = gj['features'][i]['geometry']['coordinates']
         county_polygons[county_FIP] = county_geometry
 
+    pprint.pprint(county_polygons)
+
     # dictionary of {FIP: list of list coordinates}
     return county_polygons
 
@@ -243,7 +245,7 @@ def extract_brazil_geojson():
         filtered_munis = pickle.load(fp)
 
     # Read in GeoJSON file
-    filename = "/Users/christopheryu/Desktop/brazil_municipalities_1991_mit_geo_web/processed/05_malhamunicipal1991_5.json"
+    filename = "/Users/christopheryu/Desktop/mygeodata/processed/05_malhamunicipal1991_7.json"
     with open(filename) as f:
         gj = geojson.load(f)
 
@@ -261,8 +263,9 @@ def extract_brazil_geojson():
             count += 1
             muni_polygons[muni_name] = gj['features'][i]['geometry']['coordinates']
 
+    pprint.pprint(muni_polygons)
     # write geojson to pickle file
-    with open('json_store/brazil_data/filtered_brazil_geojson_5.p', 'wb') as fp:
+    with open('json_store/brazil_data/filtered_brazil_geojson_7.p', 'wb') as fp:
         pickle.dump(muni_polygons, fp)
 
     print(count)
