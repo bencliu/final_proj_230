@@ -175,7 +175,7 @@ class VanillaModel():
         early_stopping_tuning_cb = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-        csv_cb = callbacks.CSVLogger('my_logs/training.log', separator=',', append=True)
+        csv_cb = callbacks.CSVLogger('my_logs/concat_run_1.log', separator=',', append=True)
 
         # Generators
         self.train_generator = DataGenerator(partition['train'], labels, **self.genParams)

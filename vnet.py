@@ -111,7 +111,7 @@ class vnet_model():
         early_stopping_training_cb = callbacks.EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
         run_logdir = get_run_logdir()
         tensorboard_cb = callbacks.TensorBoard(run_logdir)
-        csv_cb = callbacks.CSVLogger('my_logs/' + modelName + '/training.log', separator=',', append=True)
+        csv_cb = callbacks.CSVLogger('my_logs/' + modelName + '/concat_run_1.log', separator=',', append=True)
 
 
         # Tuning
